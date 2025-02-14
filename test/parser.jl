@@ -2,7 +2,7 @@ using Test
 using Catlab
 using DiagrammaticEquations
 using DiagrammaticEquations: Term, Derivative, PlusOperation, MultOperation, Call, Args,
-  Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr
+  Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr, MinusOperation
 
 PEG.setdebug!(false) # To disable: PEG.setdebug!(false)
 
@@ -78,6 +78,12 @@ end
   b")[1] == DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b"))])
   @test MultOperation("a * b * c")[1] == DiagrammaticEquations.decapodes.Mult(
   [DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")), DiagrammaticEquations.decapodes.Var(Symbol("c"))])
+  MultOperation("a * b * c")[1]
+end
+
+@testset "Subtraction Operation" begin
+  @test MinusOperation("3 - 2")[1] == App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
+  @test MinusOperation("3 - 2 - 1")[1] ==  App2(:-, App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))), DiagrammaticEquations.decapodes.Lit(Symbol("1")))
 end
 
 @testset "PlusOperation" begin
@@ -475,4 +481,196 @@ end
     end))
 
     @test parsed_result ≃ pt5
+<<<<<<< Updated upstream
 end
+=======
+
+    # Recursive Expr
+    parse_result = decapode"
+      x::Form0{X}
+      y::Form0{X}
+      z::Form0{X}
+  
+      ∂ₜ(z) == f1(x) + ∘(g, h)(y)
+      y == F(f2(x), ρ(x,z))"
+
+    Recursion = quote
+      x::Form0{X}
+      y::Form0{X}
+      z::Form0{X}
+  
+      ∂ₜ(z) == f1(x) + ∘(g, h)(y)
+      y == F(f2(x), ρ(x,z))
+    end
+  
+    rdp = SummationDecapode(parse_decapode(Recursion))
+
+    @test parse_result ≃ rdp
+
+    # Diffusion Diagram
+    parse_result = decapode"
+      (C, Ċ)::Form0{X}
+      ϕ::Form1{X}
+
+      ϕ ==  ∘(k, d₀)(C)
+
+      Ċ == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)
+      ∂ₜ(C) == Ċ"
+    # TODO: Add Comment Support in PEG?
+
+    DiffusionExprBody =  quote
+      (C, Ċ)::Form0{X}
+      ϕ::Form1{X}
+
+      # Fick's first law
+      ϕ ==  ∘(k, d₀)(C)
+      # Diffusion equation
+      Ċ == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)
+      ∂ₜ(C) == Ċ
+  end
+
+  ddp = SummationDecapode(parse_decapode(DiffusionExprBody))
+
+  @test parse_result ≃ ddp
+
+  # Advection Diagram
+  parse_result = decapode"
+    C::Form0{X}
+    (V, ϕ)::Form1{X}
+
+    ϕ == ∧₀₁(C,V)"
+
+  Advection = quote
+    C::Form0{X}
+    (V, ϕ)::Form1{X}
+
+    ϕ == ∧₀₁(C,V)
+  end
+
+  advdp = SummationDecapode(parse_decapode(Advection))
+
+  @test parse_result ≃ advdp
+
+  # Superposition Diagram
+  parse_result = decapode"
+    (C, Ċ)::Form0{X}
+    (ϕ, ϕ₁, ϕ₂)::Form1{X}
+
+    ϕ == ϕ₁ + ϕ₂
+    Ċ == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)
+    ∂ₜ(C) == Ċ"
+
+  Superposition = quote
+    (C, Ċ)::Form0{X}
+    (ϕ, ϕ₁, ϕ₂)::Form1{X}
+
+    ϕ == ϕ₁ + ϕ₂
+    Ċ == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)
+    ∂ₜ(C) == Ċ
+  end
+
+  supdp = SummationDecapode(parse_decapode(Superposition))
+
+  @test parse_result ≃ supdp
+
+  # Mixed Semicolon support test
+  parse_result_semi = decapode"
+    (C, Ċ)::Form0{X}; (ϕ, ϕ₁, ϕ₂)::Form1{X};
+
+    ϕ == ϕ₁ + ϕ₂; Ċ == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ);
+    ∂ₜ(C) == Ċ"
+
+  @test parse_result_semi ≃ supdp
+
+  # Testing carrot operator 
+  # TODO: PEG does not support the exponent operator (Broken)
+  parse_result = decapode"
+    h::Form0
+    Γ::Form1
+    n::Constant
+
+    ḣ == ∂ₜ(h)
+    ḣ == ∘(⋆, d, ⋆)(Γ * d(h) * avg₀₁(mag(♯(d(h)))^(n-1)) * avg₀₁(h^(n+2)))"
+
+  d = quote
+    h::Form0
+    Γ::Form1
+    n::Constant
+
+    ḣ == ∂ₜ(h)
+    ḣ == ∘(⋆, d, ⋆)(Γ * d(h) * avg₀₁(mag(♯(d(h)))^(n-1-1)) * avg₀₁(h^(n+2)))
+  end
+
+  ddp_exp = SummationDecapode(parse_decapode(d))
+
+  @test parse_result ≃ ddp_exp
+
+  # TODO: Division not supported
+  parse_result = decapode"
+    (M, Ṁ, G, V)::Form1{X}
+    (T, ρ, p, ṗ)::Form0{X}
+    (two,three,kᵥ)::Parameter{X}
+    V == M/avg(ρ)
+    Ṁ == neg(L(V, ⋆(V)))*avg(ρ) +
+          kᵥ*(Δ(V) + d(δ(V))/three) +
+          d(i(V, ⋆(V))/two)*avg(ρ) +
+          neg(d(p)) +
+          G*avg(ρ)
+    ∂ₜ(M) == Ṁ
+    ṗ == neg(⋆(L(V, ⋆(p))))
+    ∂ₜ(p) == ṗ"
+
+  NavierStokesExprBody = quote
+    (M, Ṁ, G, V)::Form1{X}
+    (T, ρ, p, ṗ)::Form0{X}
+    (two,three,kᵥ)::Parameter{X}
+    V == M/avg(ρ)
+    Ṁ == neg(L(V, ⋆(V)))*avg(ρ) +
+          kᵥ*(Δ(V) + d(δ(V))/three) +
+          d(i(V, ⋆(V))/two)*avg(ρ) +
+          neg(d(p)) +
+          G*avg(ρ)
+    ∂ₜ(M) == Ṁ
+    ṗ == neg(⋆(L(V, ⋆(p)))) # *Lie(3Form) = Div(*3Form x v) --> conservation of pressure
+    ∂ₜ(p) == ṗ
+  end
+
+  NavierStokes = SummationDecapode(parse_decapode(NavierStokesExprBody))
+
+  @test parse_result ≃ NavierStokes
+
+  # Multiline Support
+  parse_result = decapode"
+    x::Form0{X}
+    y::Form0{X}
+    z::Form0{X}
+
+    ∂ₜ(z) == 
+      f1(x) + 
+      ∘(g, h)(y)
+    y == F(f2(x), ρ(x,z))"
+
+  Recursion = quote
+    x::Form0{X}
+    y::Form0{X}
+    z::Form0{X}
+
+    ∂ₜ(z) == f1(x) + ∘(g, h)(y)
+    y == F(f2(x), ρ(x,z))
+  end
+
+  rdp = SummationDecapode(parse_decapode(Recursion))
+
+  @test parse_result ≃ rdp
+end
+
+
+# DEBUG 
+DivisionTest = quote 
+  x::Form0{X}
+
+  x == 20/2/5
+end
+
+ test = parse_decapode(DivisionTest) # Division not supported
+>>>>>>> Stashed changes

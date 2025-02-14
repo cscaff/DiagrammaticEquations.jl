@@ -19,8 +19,10 @@ export @decapode_str
 @rule Equation = PlusOperation & ws & "==" & ws & PlusOperation |> v -> Eq(v[1], v[5]) 
 
 # The operation rule supports addition and multiplication of terms.
+@rule MinusOperation = PlusOperation & (ws & "-" & ws & PlusOperation)[*] |> v -> BuildMinusOperation(v)
 @rule PlusOperation = MultOperation & (ws & "+" & ws & MultOperation)[*] |> v -> BuildPlusOperation(v)
-@rule MultOperation = Term & (ws & "*" & ws & Term)[*] |> v -> BuildMultOperation(v)
+
+@rule MultOperation = Term & (ws & ("*" , "/") & ws & Term)[*] |> v -> BuildMultOperation(v)
 
 @rule Term = Grouping, Derivative, Compose, Call, ident |> v -> ParseIdent(v)
 
@@ -54,6 +56,22 @@ function BuildMultOperation(v)
   end
 end
 
+""" BuildMinusOperation
+
+TO Do
+"""
+function BuildMinusOperation(v)
+    # Creates array of operations
+    result = vcat(v[1], map(x -> [x[2], x[end]], v[2])...)
+    # Converts array to tree structure
+    while length(result) > 1
+      Applied = App2(Symbol(result[2]), result[1], result[3])
+      result = vcat([Applied], result[4:end])
+    end
+    return result[1]
+    print("MINUS TEST: $result")
+end
+
 """ BuildPlusOperation
 
 Takes in an input array (AST) for a multiplication operation and returns a corresponding Mult object. Handles non mult operations as well.
@@ -65,6 +83,7 @@ function BuildPlusOperation(v)
     return Plus(vcat(v[1], last.(v[2])))
   end
 end
+
 
 """ BuildCall
 
