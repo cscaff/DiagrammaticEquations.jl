@@ -2,8 +2,9 @@ using Test
 using Catlab
 using DiagrammaticEquations
 using DiagrammaticEquations: Term, Derivative, PlusOperation, MultOperation, Call, Args,
-  Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr, MinusOperation
-
+  Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr, MinusOperation,
+  DivOperation, Exponent
+  
 PEG.setdebug!(false) # To disable: PEG.setdebug!(false)
 
 # Unit Tests
@@ -72,6 +73,10 @@ end
   )
 end
 
+@testset "Division Operations" begin
+  @test DivOperation("10/2")[1] == App2(:/, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
+end
+
 @testset "MultOperation" begin
   @test MultOperation("a * b")[1] == DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b"))])
   @test MultOperation("a * 
@@ -84,6 +89,8 @@ end
 @testset "Subtraction Operation" begin
   @test MinusOperation("3 - 2")[1] == App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
   @test MinusOperation("3 - 2 - 1")[1] ==  App2(:-, App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))), DiagrammaticEquations.decapodes.Lit(Symbol("1")))
+  @test MinusOperation("3 - 2 + 1")[1] == App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Plus(
+    [DiagrammaticEquations.decapodes.Lit(Symbol("2")), DiagrammaticEquations.decapodes.Lit(Symbol("1"))]))
 end
 
 @testset "PlusOperation" begin
@@ -104,6 +111,12 @@ end
   DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("5"))]),
   DiagrammaticEquations.decapodes.Lit(Symbol("2"))
   ])
+  @test PlusOperation("10 / 2 + 3")[1] == Plus([App2(:/, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))), DiagrammaticEquations.decapodes.Lit(Symbol("3"))])
+
+end
+
+@testset "Exponent Operation" begin
+  @test Exponent("a^b")[1] == App2(:^, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
 end
 
 @testset "Terms" begin
@@ -481,9 +494,6 @@ end
     end))
 
     @test parsed_result ≃ pt5
-<<<<<<< Updated upstream
-end
-=======
 
     # Recursive Expr
     parse_result = decapode"
@@ -496,7 +506,6 @@ end
 
     Recursion = quote
       x::Form0{X}
-      y::Form0{X}
       z::Form0{X}
   
       ∂ₜ(z) == f1(x) + ∘(g, h)(y)
@@ -673,4 +682,3 @@ DivisionTest = quote
 end
 
  test = parse_decapode(DivisionTest) # Division not supported
->>>>>>> Stashed changes

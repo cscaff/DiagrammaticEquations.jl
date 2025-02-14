@@ -19,10 +19,13 @@ export @decapode_str
 @rule Equation = PlusOperation & ws & "==" & ws & PlusOperation |> v -> Eq(v[1], v[5]) 
 
 # The operation rule supports addition and multiplication of terms.
-@rule MinusOperation = PlusOperation & (ws & "-" & ws & PlusOperation)[*] |> v -> BuildMinusOperation(v)
-@rule PlusOperation = MultOperation & (ws & "+" & ws & MultOperation)[*] |> v -> BuildPlusOperation(v)
+@rule MinusOperation = PlusOperation & (ws & "-" & ws & PlusOperation)[*] |> v -> BuildAppOperation(v)
+@rule PlusOperation = DivOperation & (ws & "+" & ws & DivOperation)[*] |> v -> BuildPlusOperation(v)
 
-@rule MultOperation = Term & (ws & ("*" , "/") & ws & Term)[*] |> v -> BuildMultOperation(v)
+@rule DivOperation = MultOperation & (ws & "/" & ws & MultOperation)[*] |> v -> BuildAppOperation(v)
+@rule MultOperation = exponent & (ws & "*" & ws & exponent)[*] |> v -> BuildMultOperation(v)
+
+@rule Exponent = Term & (ws & "^" & ws & Term)[*] |> v -> BuildAppOperation(v)
 
 @rule Term = Grouping, Derivative, Compose, Call, ident |> v -> ParseIdent(v)
 
@@ -42,7 +45,9 @@ PlusOperation |> v -> [v]
 
 @rule List = ident & (ws & comma & ident)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 
-@rule ident = r"[^\+*:{}→\n;=,\(\)\s]+" # Catlab ident does not support removal of `+` and `*` characters.
+@rule ident = r"[^+\-*/\^:{}→\n;=,\(\)\s]+" # Catlab ident does not support removal of `+` and `*` characters.
+ 
+
 
 """ BuildMultOperation
 
@@ -60,7 +65,7 @@ end
 
 TO Do
 """
-function BuildMinusOperation(v)
+function BuildAppOperation(v)
     # Creates array of operations
     result = vcat(v[1], map(x -> [x[2], x[end]], v[2])...)
     # Converts array to tree structure
@@ -69,7 +74,7 @@ function BuildMinusOperation(v)
       result = vcat([Applied], result[4:end])
     end
     return result[1]
-    print("MINUS TEST: $result")
+    print("App TEST: $result")
 end
 
 """ BuildPlusOperation
