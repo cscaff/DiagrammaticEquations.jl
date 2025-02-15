@@ -6,8 +6,8 @@ export @decapode_str
 # Bodies are made up of lines where each line holds a statement 
 @rule DecapodeExpr = (MultiLineComment, Line)[*] & ws |> v -> BuildExpr(v[1])
 
-#Comments are ignored by the parser.
-#==#@rule SingleLineComment = "#" & r"[^\r\n]*" |> v -> nothing
+#Comments are ignored by the parser. #==#
+@rule SingleLineComment = "#" & r"[^\r\n]*" |> v -> nothing
 @rule MultiLineComment = "#=" & r"(?:[^=]|=(?!#)|\s)*" & "=#" |> v -> nothing
 
 # Lines are made up of a statement or comment followed by an end of line character. 
