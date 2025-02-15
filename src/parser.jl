@@ -23,7 +23,7 @@ export @decapode_str
 @rule PlusOperation = DivOperation & (ws & "+" & ws & DivOperation)[*] |> v -> BuildPlusOperation(v)
 
 @rule DivOperation = MultOperation & (ws & "/" & ws & MultOperation)[*] |> v -> BuildAppOperation(v)
-@rule MultOperation = exponent & (ws & "*" & ws & exponent)[*] |> v -> BuildMultOperation(v)
+@rule MultOperation = Exponent & (ws & "*" & ws & Exponent)[*] |> v -> BuildMultOperation(v)
 
 @rule Exponent = Term & (ws & "^" & ws & Term)[*] |> v -> BuildAppOperation(v)
 
