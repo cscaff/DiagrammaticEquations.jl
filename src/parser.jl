@@ -49,20 +49,28 @@ PlusOperation |> v -> [v]
 
 @rule List = ident & (ws & comma & ident)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 
-@rule ident = r"[^+\-*/\^:{}→\n;=,\(\)\s]+" # Catlab ident does not support removal of `+` and `*` characters.
+@rule ident = r"[^+*:{}→\n;=,\(\)\s]+" |> v -> ConfirmIdentifier(v) # Catlab ident does not support removal of `+` and `*` characters. TODO: Explicitly remove operators
 
-@rule PrecMinusOp = r"- | − | ¦ | ⊕ | ⊖ | ⊞ | ⊟ | ∪ | ∨ | ⊔ | ± | ∓ | ∔ | ∸ | ≏ | ⊎ | ⊻ | ⊽ | ⋎ | ⋓ | ⟇ | ⧺
-| ⧻ | ⨈ | ⨢ | ⨣ | ⨤ | ⨥ | ⨦ | ⨧ | ⨨ | ⨩ | ⨪ | ⨫ | ⨬ | ⨭ | ⨮ | ⨹ | ⨺ | ⩁ | ⩂ | ⩅ | ⩊ | ⩌ | ⩏ | ⩐ | ⩒ | ⩔
-| ⩖ | ⩗ | ⩛ | ⩝ | ⩡ | ⩢ | ⩣ | \|\+\+\| | \|\\\|\|"
+PrecMinusOp = r"-|−|¦|⊕|⊖|⊞|⊟|∪|∨|⊔|±|∓|∔|∸|≏|⊎|⊻|⊽|⋎|⋓|⟇|⧺|⧻|⨈|⨢|⨣|⨤|⨥|⨦|⨧|⨨|⨩|⨪|⨫|⨬|⨭|⨮|⨹|⨺|⩁|⩂|⩅|⩊|⩌|⩏|⩐|⩒|⩔|⩖|⩗|⩛|⩝|⩡|⩢|⩣|\|\+\+\||\|\\\|\|"
 
 # TODO: Do we want "∘" to also be used in PrecDivOp with Compose???
- @rule PrecDivOp = r"/ | ⌿ | ÷ | % | & | · | · | ⋅ | ∘ | × | ∩ | ∧ | ⊗ | ⊘ | ⊙ | ⊚ | ⊛ | ⊠ | ⊡ | ⊓ 
- | ∗ | ∙ | ∤ | ⅋ | ≀ | ⊼ | ⋄ | ⋆ | ⋇ | ⋉ | ⋊ | ⋋ | ⋌ | ⋏ | ⋒ | ⟑ | ⦸ | ⦼ | ⦾ | ⦿ | ⧶ | ⧷ | ⨇ | ⨰ | ⨱ | ⨲ | ⨳
- | ⨴| ⨵ | ⨶ | ⨷ | ⨸ | ⨻ | ⨼ | ⨽ | ⩀ | < | ⩃ | ⩄ | ⩋ | ⩍ | ⩎ | ⩑ | ⩓ | ⩕ | ⩘ | ⩚ | ⩜ | ⩞ | ⩟ | ⩠ | ⫛ | ⊍ | ▷
- | ⨝ | ⟕ | ⟖ | ⟗ | ⨟ | \|\\\\\|"
+PrecDivOp = r"/|⌿|÷|%|&|·|·|⋅|∘|×|∩|∧|⊗|⊘|⊙|⊚|⊛|⊠|⊡|⊓|∗|∙|∤|⅋|≀|⊼|⋄|⋆|⋇|⋉|⋊|⋋|⋌|⋏|⋒|⟑|⦸|⦼|⦾|⦿|⧶|⧷|⨇|⨰|⨱|⨲|⨳|⨴|⨵|⨶|⨷|⨸|⨻|⨼|⨽|⩀|<|⩃|⩄|⩋|⩍|⩎|⩑|⩓|⩕|⩘|⩚|⩜|⩞|⩟|⩠|⫛|⊍|▷|⨝|⟕|⟖|⟗|⨟|\|\\\\\|"
 
-@rule PrecPowerOp = r"^ | ↑ | ↓ | ⇵ | ⟰ | ⟱ | ⤈ | ⤉ | ⤊ | ⤋ | ⤒ | ⤓ | ⥉ | ⥌ | ⥍ | ⥏ | ⥑ | ⥔ | ⥕ | ⥘ | ⥙ | ⥜ | ⥝ | ⥠
- | ⥡ | ⥣ | ⥥ | ⥮ | ⥯ | ￪ | ￬"
+PrecPowerOp = r"\^|↑|↓|⇵|⟰|⟱|⤈|⤉|⤊|⤋|⤒|⤓|⥉|⥌|⥍|⥏|⥑|⥔|⥕|⥘|⥙|⥜|⥝|⥠|⥡|⥣|⥥|⥮|⥯|￪|￬"
+
+""" ConfirmIdentifier
+
+Ensures that an identifier does not contain any operators. If it does, an error is thrown.
+"""
+function ConfirmIdentifier(v)
+  print("TEST: $v")
+  if (!occursin(PrecMinusOp, v) && !occursin(PrecDivOp, v) && !occursin(PrecPowerOp, v))
+    return v
+  else 
+    throw(Meta.ParseError("Identifier $v contains an operator."))
+  end
+end
+
 
  """ BuildMultOperation
 

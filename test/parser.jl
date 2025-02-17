@@ -1,9 +1,8 @@
 using Test
 using Catlab
 using DiagrammaticEquations
-using DiagrammaticEquations: Term, Derivative, PlusOperation, MultOperation, Call, Args,
-  Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr, SingleLineComment, MultiLineComment, MinusOperation,
-  DivOperation, InfixOperation
+using DiagrammaticEquations: Term, Derivative, SummationOperation, MultOperation, Call, Args,
+  Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr, SingleLineComment, MultiLineComment, ident
   
 PEG.setdebug!(true) # To disable: PEG.setdebug!(false)
 
@@ -91,7 +90,9 @@ end
 end
 
 @testset "Division Operations" begin
-  @test DivOperation("10/2")[1] == App2(:/, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
+  @test PrecDivOperation("10/2")[1] == App2(:/, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
+  @test PrecDivOperation("10 / 2")[1] == App2(:/, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
+  @test PrecDivOperation("10 ∧ 2")[1] == App2(:∧, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
 end
 
 @testset "MultOperation" begin
@@ -188,6 +189,11 @@ end
   @test List("a, b")[1] == [:a, :b]
   @test List("a, b, c")[1] == [:a, :b, :c]
 end
+
+@test "Identifiers" begin
+  @test ident("abc")[1] == "abc"
+end
+
 
 # Exception Handling Tests
 ##########################
