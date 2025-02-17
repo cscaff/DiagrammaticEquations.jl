@@ -20,16 +20,16 @@ export @decapode_str
 @rule Judgement = (ident , (lparen & ws & List & ws & rparen)) & "::" & TypeName |> v -> BuildJudgement(v)
 @rule TypeName = ident & ("{" & ident & "}")[:?] |> v -> BuildTypeName(v)
   
-@rule Equation = PlusOperation & ws & "==" & ws & PlusOperation |> v -> Eq(v[1], v[5]) 
+@rule Equation = SummationOperation & ws & "==" & ws & SummationOperation |> v -> Eq(v[1], v[5]) 
 
 # The operation rule supports addition and multiplication of terms.
-@rule MinusOperation = PlusOperation & (ws & "-" & ws & PlusOperation)[*] |> v -> BuildAppOperation(v)
-@rule PlusOperation = DivOperation & (ws & "+" & ws & DivOperation)[*] |> v -> BuildPlusOperation(v)
+@rule SummationOperation = PrecMinusOperation & (ws & "+" & ws & PrecMinusOperation)[*] |> v -> BuildPlusOperation(v)
+@rule PrecMinusOperation = PrecDivOperation & (ws & PrecMinusOp & ws & PrecDivOperation)[*] |> v -> BuildApp2(v)
 
-@rule DivOperation = MultOperation & (ws & "/" & ws & MultOperation)[*] |> v -> BuildAppOperation(v)
-@rule MultOperation = Exponent & (ws & "*" & ws & Exponent)[*] |> v -> BuildMultOperation(v)
+@rule PrecDivOperation = MultOperation & (ws & PrecDivOp & ws & MultOperation)[*] |> v -> BuildApp2(v)
+@rule MultOperation = PrecPowerOperation & (ws & "*" & ws & PrecPowerOperation)[*] |> v -> BuildMultOperation(v)
 
-@rule Exponent = Term & (ws & "^" & ws & Term)[*] |> v -> BuildAppOperation(v)
+@rule PrecPowerOperation = Term & (ws & PrecPowerOp & ws & Term)[*] |> v -> BuildApp2(v)
 
 @rule Term = Grouping, Derivative, Compose, Call, ident |> v -> ParseIdent(v)
 
@@ -50,10 +50,21 @@ PlusOperation |> v -> [v]
 @rule List = ident & (ws & comma & ident)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 
 @rule ident = r"[^+\-*/\^:{}→\n;=,\(\)\s]+" # Catlab ident does not support removal of `+` and `*` characters.
- 
 
+@rule PrecMinusOp = r"- | − | ¦ | ⊕ | ⊖ | ⊞ | ⊟ | ∪ | ∨ | ⊔ | ± | ∓ | ∔ | ∸ | ≏ | ⊎ | ⊻ | ⊽ | ⋎ | ⋓ | ⟇ | ⧺
+| ⧻ | ⨈ | ⨢ | ⨣ | ⨤ | ⨥ | ⨦ | ⨧ | ⨨ | ⨩ | ⨪ | ⨫ | ⨬ | ⨭ | ⨮ | ⨹ | ⨺ | ⩁ | ⩂ | ⩅ | ⩊ | ⩌ | ⩏ | ⩐ | ⩒ | ⩔
+| ⩖ | ⩗ | ⩛ | ⩝ | ⩡ | ⩢ | ⩣ | \|\+\+\| | \|\\\|\|"
 
-""" BuildMultOperation
+# TODO: Do we want "∘" to also be used in PrecDivOp with Compose???
+ @rule PrecDivOp = r"/ | ⌿ | ÷ | % | & | · | · | ⋅ | ∘ | × | ∩ | ∧ | ⊗ | ⊘ | ⊙ | ⊚ | ⊛ | ⊠ | ⊡ | ⊓ 
+ | ∗ | ∙ | ∤ | ⅋ | ≀ | ⊼ | ⋄ | ⋆ | ⋇ | ⋉ | ⋊ | ⋋ | ⋌ | ⋏ | ⋒ | ⟑ | ⦸ | ⦼ | ⦾ | ⦿ | ⧶ | ⧷ | ⨇ | ⨰ | ⨱ | ⨲ | ⨳
+ | ⨴| ⨵ | ⨶ | ⨷ | ⨸ | ⨻ | ⨼ | ⨽ | ⩀ | < | ⩃ | ⩄ | ⩋ | ⩍ | ⩎ | ⩑ | ⩓ | ⩕ | ⩘ | ⩚ | ⩜ | ⩞ | ⩟ | ⩠ | ⫛ | ⊍ | ▷
+ | ⨝ | ⟕ | ⟖ | ⟗ | ⨟ | \|\\\\\|"
+
+@rule PrecPowerOp = r"^ | ↑ | ↓ | ⇵ | ⟰ | ⟱ | ⤈ | ⤉ | ⤊ | ⤋ | ⤒ | ⤓ | ⥉ | ⥌ | ⥍ | ⥏ | ⥑ | ⥔ | ⥕ | ⥘ | ⥙ | ⥜ | ⥝ | ⥠
+ | ⥡ | ⥣ | ⥥ | ⥮ | ⥯ | ￪ | ￬"
+
+ """ BuildMultOperation
 
 Takes in an input array (AST) for a multiplication operation and returns a corresponding Mult object. Handles non mult operations as well.
 """
@@ -69,7 +80,7 @@ end
 
 TO Do
 """
-function BuildAppOperation(v)
+function BuildApp2(v)
     # Creates array of operations
     result = vcat(v[1], map(x -> [x[2], x[end]], v[2])...)
     # Converts array to tree structure

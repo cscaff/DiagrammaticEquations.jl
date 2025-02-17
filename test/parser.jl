@@ -3,9 +3,9 @@ using Catlab
 using DiagrammaticEquations
 using DiagrammaticEquations: Term, Derivative, PlusOperation, MultOperation, Call, Args,
   Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr, SingleLineComment, MultiLineComment, MinusOperation,
-  DivOperation, Exponent
+  DivOperation, InfixOperation
   
-PEG.setdebug!(false) # To disable: PEG.setdebug!(false)
+PEG.setdebug!(true) # To disable: PEG.setdebug!(false)
 
 # Unit Tests
 ##############
@@ -132,8 +132,9 @@ end
 
 end
 
-@testset "Exponent Operation" begin
-  @test Exponent("a^b")[1] == App2(:^, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
+@testset "InfixOperation Operation" begin
+  @test InfixOperation("a^b")[1] == App2(:^, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
+  @test InfixOperation("C ∧₀₁ V")[1] == App2(:∧₀₁, DiagrammaticEquations.decapodes.Var(Symbol("C")), DiagrammaticEquations.decapodes.Var(Symbol("V")))
 end
 
 @testset "Terms" begin
@@ -699,3 +700,15 @@ DivisionTest = quote
 end
 
  test = parse_decapode(DivisionTest) # Division not supported
+
+ # DEBUG
+ projection_test = quote
+  (Tₛ, OLR)::Form0
+                
+  (A, B)::Constant
+                
+  OLR == A .+ B .* Tₛ
+ end
+
+  test_tree = parse_decapode(projection_test) # Projection not supported
+  test_result = SummationDecapode(test_tree)
