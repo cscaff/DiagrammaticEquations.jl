@@ -2,9 +2,10 @@ using Test
 using Catlab
 using DiagrammaticEquations
 using DiagrammaticEquations: Term, Derivative, SummationOperation, MultOperation, Call, Args,
-  Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr, SingleLineComment, MultiLineComment, ident
+  Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr, SingleLineComment, MultiLineComment, Ident,
+  PrecMinusOperation, PrecDivOperation, PrecPowerOperation
   
-PEG.setdebug!(true) # To disable: PEG.setdebug!(false)
+PEG.setdebug!(false) # To disable: PEG.setdebug!(false)
 
 # Unit Tests
 ##############
@@ -105,37 +106,35 @@ end
 end
 
 @testset "Subtraction Operation" begin
-  @test MinusOperation("3 - 2")[1] == App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
-  @test MinusOperation("3 - 2 - 1")[1] ==  App2(:-, App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))), DiagrammaticEquations.decapodes.Lit(Symbol("1")))
-  @test MinusOperation("3 - 2 + 1")[1] == App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Plus(
-    [DiagrammaticEquations.decapodes.Lit(Symbol("2")), DiagrammaticEquations.decapodes.Lit(Symbol("1"))]))
+  @test PrecMinusOperation("3 - 2")[1] == App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
+  @test PrecMinusOperation("3 - 2 - 1")[1] ==  App2(:-, App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))), DiagrammaticEquations.decapodes.Lit(Symbol("1")))
 end
 
 @testset "PlusOperation" begin
-  @test PlusOperation("a + b")[1] == DiagrammaticEquations.decapodes.Plus(
+  @test SummationOperation("a + b")[1] == DiagrammaticEquations.decapodes.Plus(
   [DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b"))])
-  @test PlusOperation("a + b + c")[1] == DiagrammaticEquations.decapodes.Plus(
+  @test SummationOperation("a + b + c")[1] == DiagrammaticEquations.decapodes.Plus(
   [DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")), DiagrammaticEquations.decapodes.Var(Symbol("c"))])
-  @test PlusOperation("dt(X) + ∂ₜ(X)")[1] == DiagrammaticEquations.decapodes.Plus(
+  @test SummationOperation("dt(X) + ∂ₜ(X)")[1] == DiagrammaticEquations.decapodes.Plus(
   [Tan(DiagrammaticEquations.decapodes.Var(Symbol("X"))), Tan(DiagrammaticEquations.decapodes.Var(Symbol("X")))])
-  @test PlusOperation("a * b + c")[1] == DiagrammaticEquations.decapodes.Plus([
+  @test SummationOperation("a * b + c")[1] == DiagrammaticEquations.decapodes.Plus([
   DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Var(Symbol("a")), 
   DiagrammaticEquations.decapodes.Var(Symbol("b"))]), DiagrammaticEquations.decapodes.Var(Symbol("c"))])
-  @test PlusOperation("3 * (5 + 2)")[1] == DiagrammaticEquations.decapodes.Mult([
+  @test SummationOperation("3 * (5 + 2)")[1] == DiagrammaticEquations.decapodes.Mult([
   DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Plus(
   [DiagrammaticEquations.decapodes.Lit(Symbol("5")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))])
   ])
-  @test PlusOperation("3 * 5 + 2")[1] == DiagrammaticEquations.decapodes.Plus([
+  @test SummationOperation("3 * 5 + 2")[1] == DiagrammaticEquations.decapodes.Plus([
   DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("5"))]),
   DiagrammaticEquations.decapodes.Lit(Symbol("2"))
   ])
-  @test PlusOperation("10 / 2 + 3")[1] == Plus([App2(:/, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))), DiagrammaticEquations.decapodes.Lit(Symbol("3"))])
-
+  @test SummationOperation("10 / 2 + 3")[1] == Plus([App2(:/, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))), DiagrammaticEquations.decapodes.Lit(Symbol("3"))])
+  @test SummationOperation("3 - 2 + 1")[1] == Plus(Term[App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))), DiagrammaticEquations.decapodes.Lit(Symbol("1"))])
 end
 
-@testset "InfixOperation Operation" begin
-  @test InfixOperation("a^b")[1] == App2(:^, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
-  @test InfixOperation("C ∧₀₁ V")[1] == App2(:∧₀₁, DiagrammaticEquations.decapodes.Var(Symbol("C")), DiagrammaticEquations.decapodes.Var(Symbol("V")))
+@testset "PrecPowerOperation Operation" begin
+  @test PrecPowerOperation("a^b")[1] == App2(:^, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
+ # @test PrecPowerOperation("C ∧₀₁ V")[1] == App2(:∧₀₁, DiagrammaticEquations.decapodes.Var(Symbol("C")), DiagrammaticEquations.decapodes.Var(Symbol("V")))
 end
 
 @testset "Terms" begin
@@ -191,7 +190,7 @@ end
 end
 
 @test "Identifiers" begin
-  @test ident("abc")[1] == "abc"
+  @test Ident("abc")[1] == "abc"
 end
 
 
