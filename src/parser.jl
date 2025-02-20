@@ -41,7 +41,7 @@ export @decapode_str
 
 # TODO: Is the composition list just operators?
 # The composition rule supports the compostion of terms A over term b.
-@rule Compose = "∘" & lparen & ws & List & rparen & ws & lparen & ws & MultOperation & rparen |> v -> AppCirc1(v[4], v[9])
+@rule Compose = "∘" & lparen & ws & CallList & rparen & ws & lparen & ws & MultOperation & rparen |> v -> AppCirc1(v[4], v[9])
 
 # The call rule supports function calls of the form f(x) and g(x, y).
 @rule Call = CallName & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
@@ -53,6 +53,7 @@ export @decapode_str
 SummationOperation |> v -> [v]
 
 @rule List = Ident & (ws & comma & Ident)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
+@rule CallList = CallName & (ws & comma & CallName)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 
 @rule Ident = r"[^+*:{}→\n;=,\-−¦⊕⊖⊞⊟∪∨⊔±∓∔∸≏⊎⊻⊽⋎⋓⟇⧺⧻⨈⨢⨣⨤⨥⨦⨧⨨⨩⨪⨫⨬⨭⨮⨹⨺⩁⩂⩅⩊⩌⩏⩐⩒⩔⩖⩗⩛⩝⩡⩢⩣\\\/⌿÷%&··⋅∘×∩∧⊗⊘⊙⊚⊛⊠⊡⊓∗∙∤⅋≀⊼⋄⋆⋇⋉⋊⋋⋌⋏⋒⟑⦸⦼⦾⦿⧶⧷⨇⨰⨱⨲⨳⨴⨵⨶⨷⨸⨻⨼⨽⩀<⩃⩄⩋⩍⩎⩑⩓⩕⩘⩚⩜⩞⩟⩠⫛⊍▷⨝⟕⟖⟗⨟\^↑↓⇵⟰⟱⤈⤉⤊⤋⤒⤓⥉⥌⥍⥏⥑⥔⥕⥘⥙⥜⥝⥠⥡⥣⥥⥮⥯￪￬\|\(\)\s]+"
 

@@ -3,7 +3,7 @@ using Catlab
 using DiagrammaticEquations
 using DiagrammaticEquations: Term, Derivative, SummationOperation, MultOperation, Call, Args,
   Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr, SingleLineComment, MultiLineComment, Ident,
-  PrecMinusOperation, PrecDivOperation, PrecPowerOperation, Ident, CallName
+  PrecMinusOperation, PrecDivOperation, PrecPowerOperation, Ident, CallName, CallList
   
 PEG.setdebug!(false) # To disable: PEG.setdebug!(false)
 
@@ -87,6 +87,9 @@ end
   Tan(DiagrammaticEquations.decapodes.Var(Symbol("X")))
   ]),
   AppCirc1([:a, :b], DiagrammaticEquations.decapodes.Var(:c))
+  )
+  @test Equation("Ċ == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)")[1] == DiagrammaticEquations.decapodes.Eq(
+  DiagrammaticEquations.decapodes.Var(Symbol("Ċ")), AppCirc1([:⋆₀⁻¹, :dual_d₁, :⋆₁], DiagrammaticEquations.decapodes.Var(Symbol("ϕ")))
   )
 end
 
@@ -198,8 +201,14 @@ end
   @test List("a, b, c")[1] == [:a, :b, :c]
 end
 
+@testset "CallList" begin
+  @test CallList("a, b")[1] == [:a, :b]
+  @test CallList("⊕, ⊽, A")[1] == [:⊕, :⊽, :A]
+end
+
 @testset "Identifiers" begin
   @test Ident("abc")[1] == "abc"
+  @test Ident("Ċ")[1] == "Ċ"
 end
 
 @testset "CallName" begin
