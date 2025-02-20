@@ -3,9 +3,9 @@ using Catlab
 using DiagrammaticEquations
 using DiagrammaticEquations: Term, Derivative, SummationOperation, MultOperation, Call, Args,
   Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr, SingleLineComment, MultiLineComment, Ident,
-  PrecMinusOperation, PrecDivOperation, PrecPowerOperation, Ident, CallName, CallList
+  PrecMinusOperation, PrecDivOperation, PrecPowerOperation, Ident, CallName, CallList, PrecDivOp, PrecMinusOp
   
-PEG.setdebug!(false) # To disable: PEG.setdebug!(false)
+PEG.setdebug!(true) # To disable: PEG.setdebug!(false)
 
 # Unit Tests
 ##############
@@ -20,6 +20,13 @@ PEG.setdebug!(false) # To disable: PEG.setdebug!(false)
   @test DecapodeExpr("a::b\n")[1] == DecaExpr([
   DiagrammaticEquations.decapodes.Judgement(:a, :b, :I)
   ],[])
+  @test DecapodeExpr("a::b\nx::y\nz::l\na == b\n")[1] == DecaExpr([
+  DiagrammaticEquations.decapodes.Judgement(:a, :b, :I),
+  DiagrammaticEquations.decapodes.Judgement(:x, :y, :I),
+  DiagrammaticEquations.decapodes.Judgement(:z, :l, :I)
+  ],[
+  DiagrammaticEquations.decapodes.Eq(DiagrammaticEquations.decapodes.Var(:a), DiagrammaticEquations.decapodes.Var(:b))
+  ])
 end
 
 @testset "Comments" begin
@@ -43,6 +50,12 @@ end
   @test Line("a::b\n")[1] == DiagrammaticEquations.decapodes.Judgement(:a, :b, :I)
   @test Line("alpha::beta\n")[1] == DiagrammaticEquations.decapodes.Judgement(:alpha, :beta, :I)
   @test Line("x::y\n")[1] == DiagrammaticEquations.decapodes.Judgement(:x, :y, :I)
+  @test Line("a == b\n")[1] == DiagrammaticEquations.decapodes.Eq(
+  DiagrammaticEquations.decapodes.Var(:a), DiagrammaticEquations.decapodes.Var(:b)
+  )
+  @test Line("Ċ == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)\n")[1] == DiagrammaticEquations.decapodes.Eq(
+  DiagrammaticEquations.decapodes.Var(Symbol("Ċ")), AppCirc1([:⋆₀⁻¹, :dual_d₁, :⋆₁], DiagrammaticEquations.decapodes.Var(Symbol("ϕ")))
+  )
 end
 
 @testset "Statement" begin
@@ -98,6 +111,7 @@ end
   @test PrecDivOperation("10 / 2")[1] == App2(:/, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
   @test PrecDivOperation("10 ∧ 2")[1] == App2(:∧, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
   @test PrecDivOperation("C ∧₀₁ V")[1] == App2(:∧₀₁, DiagrammaticEquations.decapodes.Var(Symbol("C")), DiagrammaticEquations.decapodes.Var(Symbol("V")))
+  @test PrecDivOperation("A .* B")[1] == App2(:.*, DiagrammaticEquations.decapodes.Var(Symbol("A")), DiagrammaticEquations.decapodes.Var(Symbol("B")))
 end
 
 @testset "MultOperation" begin
@@ -106,8 +120,7 @@ end
   b")[1] == DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b"))])
   @test MultOperation("a * b * c")[1] == DiagrammaticEquations.decapodes.Mult(
   [DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")), DiagrammaticEquations.decapodes.Var(Symbol("c"))])
-  MultOperation("a * b * c")[1]
-  @test MultOperation("2*d₀(C)")[1] == DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Lit(Symbol("2")), Tan(DiagrammaticEquations.decapodes.Var(Symbol("C")))])
+  @test MultOperation("2*d₀(C)")[1] == DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Lit(Symbol("2")), App1(:d₀, DiagrammaticEquations.decapodes.Var(Symbol("C")))])
 end
 
 @testset "Subtraction Operation" begin
@@ -209,6 +222,7 @@ end
 @testset "Identifiers" begin
   @test Ident("abc")[1] == "abc"
   @test Ident("Ċ")[1] == "Ċ"
+  @test Ident("meep\n")[1] == "meep"
 end
 
 @testset "CallName" begin
@@ -216,6 +230,13 @@ end
   @test CallName("hello")[1] == "hello"
 end
 
+@test "PrecDivOp" begin
+  @test PrecDivOp("/")[1] == "/"
+end
+
+@test "PrecMinusOp" begin
+  @test PrecMinusOp("-")[1] == "-"
+end
 # Exception Handling Tests
 ##########################
 
@@ -535,7 +556,7 @@ end
       k::Constant{Point}
   
       ∂ₜ(X) == V
-      ∂ₜ(V) == -1*k*(X)
+      ∂ₜ(V) == -1*k*(X) # FAILING BECASE NEGATIVE NOT ALLOWED IN IDENT
     end))
 
     @test parsed_result ≃ pt5
@@ -551,6 +572,7 @@ end
 
     Recursion = quote
       x::Form0{X}
+      y::Form0{X}
       z::Form0{X}
   
       ∂ₜ(z) == f1(x) + ∘(g, h)(y)
@@ -636,8 +658,8 @@ end
 
   @test parse_result_semi ≃ supdp
 
-  # Heat Transfer Model
-  parse_result = decapode"
+  # Heat Transfer Model FAILING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  parse_result = decapode" 
     (HT, Tₛ)::Form0
     (D, cosϕᵖ, cosϕᵈ)::Constant
     
@@ -650,9 +672,10 @@ end
     HT == (D ./ cosϕᵖ) .* (⋆)(d(cosϕᵈ .* (⋆)(d(Tₛ))))
   end
 
-  htts ≃ SummationDecapode(parse_decapode(HeatTransfer))
+  htts = SummationDecapode(parse_decapode(HeatTransfer))
 
   @test parse_result ≃ htts
+
 
   # Outgoing Longwave Radiation Model
   parse_result = decapode"
