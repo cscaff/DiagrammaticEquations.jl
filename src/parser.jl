@@ -17,7 +17,7 @@ export @decapode_str
 @rule Statement = Judgement , Equation
 
 # A judgement is a statement of the form A::B. It marks a type assignment.
-@rule Judgement = (Operand , (lparen & ws & List & ws & rparen)) & "::" & TypeName |> v -> BuildJudgement(v)
+@rule Judgement = (Ident , (lparen & ws & List & ws & rparen)) & "::" & TypeName |> v -> BuildJudgement(v)
 @rule TypeName = Ident & ("{" & Ident & "}")[:?] |> v -> BuildTypeName(v)
   
 @rule Equation = SummationOperation & ws & "==" & ws & SummationOperation |> v -> Eq(v[1], v[5]) 
@@ -31,27 +31,30 @@ export @decapode_str
 
 @rule PrecPowerOperation = Term & (ws & PrecPowerOp & ws & Term)[*] |> v -> BuildApp2(v)
 
-@rule Term = Grouping, Derivative, Compose, Call, Operand |> v -> ParseIdent(v)
+@rule Term = Grouping, Derivative, Compose, Call, Ident |> v -> ParseIdent(v)
 
 # The grouping rule supports the grouping of terms using parentheses. Higher precedence than +/*.
 @rule Grouping = lparen & ws & SummationOperation & ws & rparen |> v -> v[3]
 
 # The derivative rule supports derivatives of the form ∂ₜ(x) and dt(x).
-@rule Derivative = ("∂ₜ" , "dt") & lparen & ws & Operand & ws & rparen |> v -> Tan(decapodes.Var(Symbol(v[4])))
+@rule Derivative = ("∂ₜ" , "dt") & lparen & ws & Ident & ws & rparen |> v -> Tan(decapodes.Var(Symbol(v[4])))
 
+# TODO: Is the composition list just operators?
 # The composition rule supports the compostion of terms A over term b.
 @rule Compose = "∘" & lparen & ws & List & rparen & ws & lparen & ws & MultOperation & rparen |> v -> AppCirc1(v[4], v[9])
 
 # The call rule supports function calls of the form f(x) and g(x, y).
-@rule Call = Ident & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
+@rule Call = CallName & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
+
+@rule CallName = UnaryOperator , Ident
+@rule UnaryOperator = PrecMinusOp , PrecDivOp , PrecPowerOp
+
 @rule Args = (SummationOperation & ws & comma & SummationOperation) |> v -> [v[1], v[4]],
 SummationOperation |> v -> [v]
 
-@rule List = Operand & (ws & comma & Operand)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
+@rule List = Ident & (ws & comma & Ident)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 
-@rule Operand = r"[^+*:{}→\n;=,\-−¦⊕⊖⊞⊟∪∨⊔±∓∔∸≏⊎⊻⊽⋎⋓⟇⧺⧻⨈⨢⨣⨤⨥⨦⨧⨨⨩⨪⨫⨬⨭⨮⨹⨺⩁⩂⩅⩊⩌⩏⩐⩒⩔⩖⩗⩛⩝⩡⩢⩣\\\/⌿÷%&··⋅∘×∩∧⊗⊘⊙⊚⊛⊠⊡⊓∗∙∤⅋≀⊼⋄⋆⋇⋉⋊⋋⋌⋏⋒⟑⦸⦼⦾⦿⧶⧷⨇⨰⨱⨲⨳⨴⨵⨶⨷⨸⨻⨼⨽⩀<⩃⩄⩋⩍⩎⩑⩓⩕⩘⩚⩜⩞⩟⩠⫛⊍▷⨝⟕⟖⟗⨟\^↑↓⇵⟰⟱⤈⤉⤊⤋⤒⤓⥉⥌⥍⥏⥑⥔⥕⥘⥙⥜⥝⥠⥡⥣⥥⥮⥯￪￬\|\(\)\s]+"
-
-@rule Ident = r"[^:{}→\n;=,\(\)\s]+"
+@rule Ident = r"[^+*:{}→\n;=,\-−¦⊕⊖⊞⊟∪∨⊔±∓∔∸≏⊎⊻⊽⋎⋓⟇⧺⧻⨈⨢⨣⨤⨥⨦⨧⨨⨩⨪⨫⨬⨭⨮⨹⨺⩁⩂⩅⩊⩌⩏⩐⩒⩔⩖⩗⩛⩝⩡⩢⩣\\\/⌿÷%&··⋅∘×∩∧⊗⊘⊙⊚⊛⊠⊡⊓∗∙∤⅋≀⊼⋄⋆⋇⋉⋊⋋⋌⋏⋒⟑⦸⦼⦾⦿⧶⧷⨇⨰⨱⨲⨳⨴⨵⨶⨷⨸⨻⨼⨽⩀<⩃⩄⩋⩍⩎⩑⩓⩕⩘⩚⩜⩞⩟⩠⫛⊍▷⨝⟕⟖⟗⨟\^↑↓⇵⟰⟱⤈⤉⤊⤋⤒⤓⥉⥌⥍⥏⥑⥔⥕⥘⥙⥜⥝⥠⥡⥣⥥⥮⥯￪￬\|\(\)\s]+"
 
 @rule PrecMinusOp = r"-|−|¦|⊕|⊖|⊞|⊟|∪|∨|⊔|±|∓|∔|∸|≏|⊎|⊻|⊽|⋎|⋓|⟇|⧺|⧻|⨈|⨢|⨣|⨤|⨥|⨦|⨧|⨨|⨩|⨪|⨫|⨬|⨭|⨮|⨹|⨺|⩁|⩂|⩅|⩊|⩌|⩏|⩐|⩒|⩔|⩖|⩗|⩛|⩝|⩡|⩢|⩣|\|\+\+\||\|\\\|\|"
 

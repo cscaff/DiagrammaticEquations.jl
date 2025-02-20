@@ -3,7 +3,7 @@ using Catlab
 using DiagrammaticEquations
 using DiagrammaticEquations: Term, Derivative, SummationOperation, MultOperation, Call, Args,
   Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr, SingleLineComment, MultiLineComment, Ident,
-  PrecMinusOperation, PrecDivOperation, PrecPowerOperation
+  PrecMinusOperation, PrecDivOperation, PrecPowerOperation, Ident, CallName
   
 PEG.setdebug!(false) # To disable: PEG.setdebug!(false)
 
@@ -103,6 +103,7 @@ end
   @test MultOperation("a * b * c")[1] == DiagrammaticEquations.decapodes.Mult(
   [DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")), DiagrammaticEquations.decapodes.Var(Symbol("c"))])
   MultOperation("a * b * c")[1]
+  @test MultOperation("2*d₀(C)")[1] == DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Lit(Symbol("2")), Tan(DiagrammaticEquations.decapodes.Var(Symbol("C")))])
 end
 
 @testset "Subtraction Operation" begin
@@ -160,6 +161,7 @@ end
   @test Compose("∘(a, b)(c)")[1] == AppCirc1([:a, :b], DiagrammaticEquations.decapodes.Var(:c))
   @test Compose("∘(a, b, c)(d)")[1] == AppCirc1([:a, :b, :c], DiagrammaticEquations.decapodes.Var(:d))
   @test Compose("∘(a)(∂ₜ(X))")[1] == AppCirc1([:a], Tan(DiagrammaticEquations.decapodes.Var(Symbol("X"))))
+  @test Compose("∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)")[1] == AppCirc1([:⋆₀⁻¹, :dual_d₁, :⋆₁], DiagrammaticEquations.decapodes.Var(:ϕ))
 end
 
 @testset "Call" begin
@@ -171,6 +173,11 @@ end
   [DiagrammaticEquations.decapodes.Var(Symbol("n")), DiagrammaticEquations.decapodes.Lit(Symbol("1"))]),
   DiagrammaticEquations.decapodes.Plus(
   [DiagrammaticEquations.decapodes.Var(Symbol("N")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))]))
+  @test Call("⊕(a, b)")[1] == App2(:⊕, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b"))
+  )
+  @test Call("⊕(a)")[1] == App1(:⊕, DiagrammaticEquations.decapodes.Var(Symbol("a")))
+  @test Call("HI(a, b)")[1] == App2(:HI, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b"))
+  )
 end
 
 @testset "Args" begin
@@ -189,10 +196,14 @@ end
   @test List("a, b, c")[1] == [:a, :b, :c]
 end
 
-@test "Identifiers" begin
+@testset "Identifiers" begin
   @test Ident("abc")[1] == "abc"
 end
 
+@testset "CallName" begin
+  @test CallName("⊕")[1] == "⊕"
+  @test CallName("hello")[1] == "hello"
+end
 
 # Exception Handling Tests
 ##########################
@@ -223,7 +234,7 @@ end
 
   # Test Argument Exceptions - Extra Parameter
   test_input = "ident, ident ident"
-  @test parse_fails_at(Args, test_input) == 13
+  @test parse_fails_at(Args, test_input) == 14
 
   # Test Argument Exceptions - Missing Comma
   test_input = "ident ident"
@@ -275,15 +286,15 @@ end
 
   # Test Multiplication Exceptions - Missing Operator
   test_input = "2 3"
-  @test parse_fails_at(MultOperation, test_input) == 2
+  @test parse_fails_at(MultOperation, test_input) == 3
 
   # Test Plus Exceptions - Missing Argument
   test_input = " + 3"
-  @test parse_fails_at(PlusOperation, test_input) == 1
+  @test parse_fails_at(SummationOperation, test_input) == 1
 
   # Test Equation Exceptions - Missing Equation Symbol
   test_input = "A B"
-  @test parse_fails_at(Statement, test_input) == 2
+  @test parse_fails_at(Statement, test_input) == 3
 
   # Test Equation Exceptions - Missing RHS
   test_input = "A == "
@@ -291,7 +302,7 @@ end
 
   # Test Equation Exceptions - Too many equations
   test_input = "A == B == C"
-  @test parse_fails_at(Statement, test_input) == 7
+  @test parse_fails_at(Statement, test_input) == 8
 
   # Test TypeName Exceptions - Missing Bracket Argument
   test_input = "Form0{}"
