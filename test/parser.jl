@@ -109,6 +109,7 @@ end
 @testset "Subtraction Operation" begin
   @test PrecMinusOperation("3 - 2")[1] == App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
   @test PrecMinusOperation("3 - 2 - 1")[1] ==  App2(:-, App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))), DiagrammaticEquations.decapodes.Lit(Symbol("1")))
+  @test PrecMinusOperation("3 .- 2")[1] == App2(:.-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
 end
 
 @testset "PlusOperation" begin
