@@ -31,7 +31,7 @@ export @decapode_str
 
 @rule PrecPowerOperation = Term & (ws & PrecPowerOp & ws & Term)[*] |> v -> BuildApp2(v)
 
-@rule Term = Grouping, Derivative, Compose, Call, Ident |> v -> ParseIdent(v)
+@rule Term = Grouping, Derivative, Compose, Call, Atom
 
 # The grouping rule supports the grouping of terms using parentheses. Higher precedence than +/*.
 @rule Grouping = lparen & ws & SummationOperation & ws & rparen |> v -> v[3]
@@ -41,7 +41,7 @@ export @decapode_str
 
 # TODO: Is the composition list just operators?
 # The composition rule supports the compostion of terms A over term b.
-@rule Compose = "∘" & lparen & ws & CallList & rparen & ws & lparen & ws & MultOperation & rparen |> v -> AppCirc1(v[4], v[9])
+@rule Compose = "∘" & lparen & ws & CallList & rparen & ws & lparen & ws & SummationOperation & rparen |> v -> AppCirc1(v[4], v[9])
 
 # The call rule supports function calls of the form f(x) and g(x, y).
 @rule Call = CallName & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
@@ -55,7 +55,10 @@ SummationOperation |> v -> [v]
 @rule List = Ident & (ws & comma & Ident)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 @rule CallList = CallName & (ws & comma & CallName)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 
-@rule Ident = r"[^+*:{}→\n;=,\-−¦⊕⊖⊞⊟∪∨⊔±∓∔∸≏⊎⊻⊽⋎⋓⟇⧺⧻⨈⨢⨣⨤⨥⨦⨧⨨⨩⨪⨫⨬⨭⨮⨹⨺⩁⩂⩅⩊⩌⩏⩐⩒⩔⩖⩗⩛⩝⩡⩢⩣\\\/⌿÷%&··⋅∘×∩∧⊗⊘⊙⊚⊛⊠⊡⊓∗∙∤⅋≀⊼⋄⋆⋇⋉⋊⋋⋌⋏⋒⟑⦸⦼⦾⦿⧶⧷⨇⨰⨱⨲⨳⨴⨵⨶⨷⨸⨻⨼⨽⩀<⩃⩄⩋⩍⩎⩑⩓⩕⩘⩚⩜⩞⩟⩠⫛⊍▷⨝⟕⟖⟗⨟\^↑↓⇵⟰⟱⤈⤉⤊⤋⤒⤓⥉⥌⥍⥏⥑⥔⥕⥘⥙⥜⥝⥠⥡⥣⥥⥮⥯￪￬\|\(\)\s]+"
+@rule Atom = Digit , Ident
+
+@rule Ident = r"[^+*:{}→\n;=,\-−¦⊕⊖⊞⊟∪∨⊔±∓∔∸≏⊎⊻⊽⋎⋓⟇⧺⧻⨈⨢⨣⨤⨥⨦⨧⨨⨩⨪⨫⨬⨭⨮⨹⨺⩁⩂⩅⩊⩌⩏⩐⩒⩔⩖⩗⩛⩝⩡⩢⩣\\\/⌿÷%&··⋅∘×∩∧⊗⊘⊙⊚⊛⊠⊡⊓∗∙∤⅋≀⊼⋄⋆⋇⋉⋊⋋⋌⋏⋒⟑⦸⦼⦾⦿⧶⧷⨇⨰⨱⨲⨳⨴⨵⨶⨷⨸⨻⨼⨽⩀<⩃⩄⩋⩍⩎⩑⩓⩕⩘⩚⩜⩞⩟⩠⫛⊍▷⨝⟕⟖⟗⨟\^↑↓⇵⟰⟱⤈⤉⤊⤋⤒⤓⥉⥌⥍⥏⥑⥔⥕⥘⥙⥜⥝⥠⥡⥣⥥⥮⥯￪￬\|\(\)\s]+" |> v -> decapodes.Var(Symbol(v))
+@rule Digit = r"([-]?)[0-9]+" |> v -> Lit(Symbol(v))
 
 @rule PrecMinusOp = r"((\.?)(-|−|¦|⊕|⊖|⊞|⊟|∪|∨|⊔|±|∓|∔|∸|≏|⊎|⊻|⊽|⋎|⋓|⟇|⧺|⧻|⨈|⨢|⨣|⨤|⨥|⨦|⨧|⨨|⨩|⨪|⨫|⨬|⨭|⨮|⨹|⨺|⩁|⩂|⩅|⩊|⩌|⩏|⩐|⩒|⩔|⩖|⩗|⩛|⩝|⩡|⩢|⩣|\|\+\+\||\|\\\|\|))|(\.\+)" & opSuffixes |> v -> v[1]*v[2]
 
@@ -72,7 +75,7 @@ Takes in an input array (AST) for a multiplication operation and returns a corre
 """
 function BuildMultOperation(v)
   if isempty(v[2])
-    return v[1]
+    return v[1]  
   else
     return Mult(vcat(v[1], last.(v[2])))
   end
@@ -146,17 +149,17 @@ function BuildTypeName(v)
   end
 end
 
-""" ParseIdent
+# """ ParseIdent
 
-Takes in an input array (AST) for an identifier and returns a corresponding Var or Lit object.
-"""
-function ParseIdent(v)
-  if typeof(Catlab.Parsers.ParserCore.parse_identifier(v)) == Symbol
-    return decapodes.Var(Symbol(v))
-  else
-    return Lit(Symbol(v))
-  end
-end
+# Takes in an input array (AST) for an identifier and returns a corresponding Var or Lit object.
+# """
+# function ParseIdent(v)
+#   if typeof(Catlab.Parsers.ParserCore.parse_identifier(v)) == Symbol
+#     return decapodes.Var(Symbol(v))
+#   else
+#     return Lit(Symbol(v))
+#   end
+# end
 
 """
 BuildExpr

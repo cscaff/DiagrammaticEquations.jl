@@ -3,8 +3,7 @@ using Catlab
 using DiagrammaticEquations
 using DiagrammaticEquations: Term, Derivative, SummationOperation, MultOperation, Call, Args,
   Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr, SingleLineComment, MultiLineComment, Ident,
-  PrecMinusOperation, PrecDivOperation, PrecPowerOperation, Ident, CallName, CallList, PrecDivOp, PrecMinusOp
-  
+  PrecMinusOperation, PrecDivOperation, PrecPowerOperation, Ident, CallName, CallList, PrecDivOp, PrecMinusOp, Atom, Digit
 PEG.setdebug!(true) # To disable: PEG.setdebug!(false)
 
 # Unit Tests
@@ -196,6 +195,7 @@ end
   @test Call("⊕(a)")[1] == App1(:⊕, DiagrammaticEquations.decapodes.Var(Symbol("a")))
   @test Call("HI(a, b)")[1] == App2(:HI, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b"))
   )
+  @test Call("d(Ψ)")[1] == App1(:d, DiagrammaticEquations.decapodes.Var(Symbol("Ψ")))
 end
 
 @testset "Args" begin
@@ -219,10 +219,16 @@ end
   @test CallList("⊕, ⊽, A")[1] == [:⊕, :⊽, :A]
 end
 
+@testset "Atoms" begin
+  @test Atom("a")[1] == DiagrammaticEquations.decapodes.Var(Symbol("a"))
+  @test Atom("23")[1] == DiagrammaticEquations.decapodes.Lit(Symbol("23"))
+  @test Atom("-2")[1] == DiagrammaticEquations.decapodes.Lit(Symbol("-2"))
+end
+
 @testset "Identifiers" begin
-  @test Ident("abc")[1] == "abc"
-  @test Ident("Ċ")[1] == "Ċ"
-  @test Ident("meep\n")[1] == "meep"
+  @test Ident("abc")[1] == :abc
+  @test Ident("Ċ")[1] == Symbol("Ċ")
+  @test Ident("meep")[1] == :meep
 end
 
 @testset "CallName" begin
@@ -230,11 +236,11 @@ end
   @test CallName("hello")[1] == "hello"
 end
 
-@test "PrecDivOp" begin
+@testset "PrecDivOp" begin
   @test PrecDivOp("/")[1] == "/"
 end
 
-@test "PrecMinusOp" begin
+@testset "PrecMinusOp" begin
   @test PrecMinusOp("-")[1] == "-"
 end
 # Exception Handling Tests
@@ -658,12 +664,12 @@ end
 
   @test parse_result_semi ≃ supdp
 
-  # Heat Transfer Model FAILING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  # Heat Transfer Model (⋆) Not supported
   parse_result = decapode" 
     (HT, Tₛ)::Form0
     (D, cosϕᵖ, cosϕᵈ)::Constant
     
-    HT == (D ./ cosϕᵖ) .* (⋆)(d(cosϕᵈ .* (⋆)(d(Tₛ))))"
+    HT == (D ./ cosϕᵖ) .* ⋆(d(cosϕᵈ .* ⋆(d(Tₛ))))"
 
   HeatTransfer = quote
     (HT, Tₛ)::Form0
@@ -691,7 +697,7 @@ end
     OLR == A .+ B .* Tₛ
   end
 
-  olr ≃ SummationDecapode(parse_decapode(OutgoingLongRadiation))
+  olr = SummationDecapode(parse_decapode(OutgoingLongRadiation))
 
   @test parse_result ≃ olr
 
@@ -709,7 +715,7 @@ end
     ASR == (1 .- α) .* Q
   end
 
-  asr ≃ SummationDecapode(parse_decapode(AbsorbedShortRadiation))
+  asr = SummationDecapode(parse_decapode(AbsorbedShortRadiation))
 
   @test parse_result ≃ asr
 
@@ -727,7 +733,7 @@ end
     ϕ == C ∧₀₁ V
   end
 
-  adv ≃ SummationDecapode(parse_decapode(Advection))
+  adv = SummationDecapode(parse_decapode(Advection))
 
   @test parse_result ≃ adv
 
@@ -745,7 +751,7 @@ end
     ϕ == k(d₀(C))
   end
 
-  ficks ≃ SummationDecapode(parse_decapode(FicksLaw))
+  ficks = SummationDecapode(parse_decapode(FicksLaw))
 
   @test parse_result ≃ ficks
 
@@ -763,7 +769,7 @@ end
     w == (1 - σ(h)) ∧ᵖᵈ₀₁ 𝐮
   end
 
-  ibw ≃ SummationDecapode(parse_decapode(IceBlockingWater))
+  ibw = SummationDecapode(parse_decapode(IceBlockingWater))
 
   @test parse_result ≃ ibw
 
@@ -772,7 +778,7 @@ end
     (ρ, Ψ)::Form0
     β⁻¹::Constant
               
-    ∂ₜ(ρ) == (∘(⋆, d, ⋆))(d(Ψ) ∧ ρ) + β⁻¹ * Δ(ρ)"
+    ∂ₜ(ρ) == ∘(⋆, d, ⋆)(d(Ψ) ∧ ρ) + β⁻¹ * Δ(ρ)"
 
   JKO = quote
     (ρ, Ψ)::Form0
@@ -781,11 +787,14 @@ end
     ∂ₜ(ρ) == (∘(⋆, d, ⋆))(d(Ψ) ∧ ρ) + β⁻¹ * Δ(ρ)
   end
 
-  jko ≃ SummationDecapode(parse_decapode(JKO))
+  # Infered names are changed through the string macro (Var 8, 9 indices switched).
+  parse_result[:name] = [:ρ, :Ψ, :β⁻¹, :ρ̇ , Symbol("•2"), Symbol("•3"), Symbol("•4"), Symbol("•6"), Symbol("•5")]
+
+  jko = SummationDecapode(parse_decapode(JKO))
 
   @test parse_result ≃ jko
     
-  # Lie Model
+  # Lie Model ------------------- NEED TO ADD COMPOSE INFIX SUPPORT
   parse_result = decapode"
     C::Form0
     V::Form1
@@ -801,11 +810,11 @@ end
     V == ((⋆) ∘ (⋆))(C ∧ dX)
   end
 
-  lie ≃ SummationDecapode(parse_decapode(Lie))
+  lie = SummationDecapode(parse_decapode(Lie))
 
   @test parse_result ≃ lie
 
-  # Mohamed Eq. 10, N2
+  # Mohamed Eq. 10, N2 ----- negative num not supported
   parse_result = decapode"
     (𝐮, w)::DualForm1
     (P, 𝑝ᵈ)::DualForm0
@@ -813,7 +822,7 @@ end
               
     𝑝ᵈ == P + 0.5 * ι₁₁(w, w)
               
-    ∂ₜ(𝐮) == μ * (∘(d, ⋆, d, ⋆))(w) + -1 * (⋆₁⁻¹)(w ∧ᵈᵖ₁₀ (⋆)(d(w))) + d(𝑝ᵈ)"
+    ∂ₜ(𝐮) == μ * ∘(d, ⋆, d, ⋆)(w) + -1 * ⋆₁⁻¹(w ∧ᵈᵖ₁₀ ⋆(d(w))) + d(𝑝ᵈ)"
 
   Mohamed = quote
     (𝐮, w)::DualForm1
@@ -825,11 +834,11 @@ end
     ∂ₜ(𝐮) == μ * (∘(d, ⋆, d, ⋆))(w) + -1 * (⋆₁⁻¹)(w ∧ᵈᵖ₁₀ (⋆)(d(w))) + d(𝑝ᵈ)
   end
 
-  mohamed ≃ SummationDecapode(parse_decapode(Mohamed))
+  mohamed = SummationDecapode(parse_decapode(Mohamed))
 
   @test parse_result ≃ mohamed
 
-  # Momentum Model
+  # Momentum Model ----- FAILS b/c negative + testing inference differences
   parse_result = decapode"
     (f, b)::Form0
     (v, V, g, Fᵥ, uˢ, v_up)::Form1
@@ -855,7 +864,7 @@ end
     uˢ̇ == force(U)
   end
 
-  mom ≃ SummationDecapode(parse_decapode(Momentum))
+  mom = SummationDecapode(parse_decapode(Momentum))
 
   @test parse_result ≃ mom
 
@@ -867,7 +876,7 @@ end
     V̇ == neg₁(L₁′(V, V)) + div₁(kᵥ(Δ₁(V) + third(d₀(δ₁(V)))), avg₀₁(ρ)) + d₀(half(i₁′(V, V))) + neg₁(div₁(d₀(p), avg₀₁(ρ))) + G
     ∂ₜ(V) == V̇
               
-    ṗ == neg₀((⋆₀⁻¹)(L₀(V, (⋆₀)(p))))
+    ṗ == neg₀(⋆₀⁻¹(L₀(V, ⋆₀(p))))
     ∂ₜ(p) == ṗ"
 
   NavierStokes = quote
@@ -881,11 +890,11 @@ end
     ∂ₜ(p) == ṗ
   end
 
-  navier ≃ SummationDecapode(parse_decapode(NavierStokes))
+  navier = SummationDecapode(parse_decapode(NavierStokes))
 
   @test parse_result ≃ navier
 
-  # Oscillator Model
+  # Oscillator Model FAILS Because of negative
   parse_result = decapode"
     X::Form0
     V::Form0
@@ -903,11 +912,11 @@ end
     ∂ₜ(V) == -k * X
   end
 
-  osc ≃ SummationDecapode(parse_decapode(Oscillator))
+  osc = SummationDecapode(parse_decapode(Oscillator))
 
   @test parse_result ≃ osc
 
-  # Poiseuille Model
+  # Poiseuille Model Most likely fails because of inference differences
   parse_result = decapode"
     P::Form0
     q::Form1
@@ -933,11 +942,11 @@ end
     q̇ == μ̃ * ∂q(Δq) + ∇P + R * q
   end
 
-  pois ≃ SummationDecapode(parse_decapode(Poiseuille))
+  pois = SummationDecapode(parse_decapode(Poiseuille))
 
   @test parse_result ≃ pois
 
-  # Poiseuille Density Model
+  # Poiseuille Density Model Fails becase of negative
   parse_result = decapode"
     q::Form1
     (P, ρ)::Form0
@@ -973,11 +982,11 @@ end
     ρ̇ == ∂ρ(ρ_up)
   end
 
-  poisden ≃ SummationDecapode(parse_decapode(PoiseuilleDensity))
+  poisden = SummationDecapode(parse_decapode(PoiseuilleDensity))
 
   @test parse_result ≃ poisden
 
-  # Schroedinger Model
+  # Schroedinger Model Fails because of negative
   parse_result = decapode"
     (i, h, m)::Constant
     V::Parameter
@@ -993,7 +1002,7 @@ end
     ∂ₜ(Ψ) == (((-1 * h ^ 2) / (2m)) * Δ(Ψ) + V * Ψ) / (i * h)
   end
 
-  schroed ≃ SummationDecapode(parse_decapode(Schroedinger))
+  schroed = SummationDecapode(parse_decapode(Schroedinger))
 
   @test parse_result ≃ schroed
 
@@ -1003,7 +1012,7 @@ end
     (ϕ, ϕ₁, ϕ₂)::Form1
 
     ϕ == ϕ₁ + ϕ₂
-    Ċ == (⋆₀⁻¹)(dual_d₁((⋆₁)(ϕ)))
+    Ċ == ⋆₀⁻¹(dual_d₁(⋆₁(ϕ)))
     ∂ₜ(C) == Ċ"
 
   Superposition = quote
@@ -1015,11 +1024,11 @@ end
     ∂ₜ(C) == Ċ
   end
 
-  sup ≃ SummationDecapode(parse_decapode(Superposition))
+  sup = SummationDecapode(parse_decapode(Superposition))
 
   @test parse_result ≃ sup
 
-  # Gray-Scott Model
+  # Gray-Scott Model Fails because of inference differences
   parse_result = decapode"
     (U, V)::Form0
     UV2::Form0
@@ -1047,11 +1056,11 @@ end
     ∂ₜ(V) == V̇
   end
 
-  gs ≃ SummationDecapode(parse_decapode(GrayScott))
+  gs = SummationDecapode(parse_decapode(GrayScott))
 
   @test parse_result ≃ gs
 
-  # Brusselator Model
+  # Brusselator Model - Fails because of inference differences
   parse_result = decapode"
     (U, V)::Form0
     U2V::Form0
@@ -1081,11 +1090,11 @@ end
     ∂ₜ(V) == V̇
   end
 
-  brussel ≃ SummationDecapode(parse_decapode(Brusselator))
+  brussel = SummationDecapode(parse_decapode(Brusselator))
 
   @test parse_result ≃ brussel
 
-  # Kealy Model
+  # Kealy Model Fails because of inference differences
   parse_result = decapode"
     (n, w)::DualForm0
     dX::Form1
@@ -1101,11 +1110,11 @@ end
     ∂ₜ(w) == ((a - w) - w * n ^ 2) + ν * Δ(w)
   end
 
-  kealy ≃ SummationDecapode(parse_decapode(Kealy))
+  kealy = SummationDecapode(parse_decapode(Kealy))
 
   @test parse_result ≃ kealy
 
-  # Klausmeier (Eq. 2a) Model
+  # Klausmeier (Eq. 2a) Model - Testing inference differences
   parse_result = decapode"
     (n, w)::DualForm0
     dX::Form1
@@ -1121,11 +1130,11 @@ end
     ∂ₜ(w) == ((a - w) - w * n ^ 2) + ν * ℒ(dX, w)
   end
 
-  klaus ≃ SummationDecapode(parse_decapode(Klausmeier))
+  klaus = SummationDecapode(parse_decapode(Klausmeier))
 
   @test parse_result ≃ klaus
 
-  # Klausmeier (Eq. 2b) Model
+  # Klausmeier (Eq. 2b) Model - Inference Differences
   parse_result = decapode"
     (n, w)::DualForm0
     m::Constant
@@ -1139,11 +1148,11 @@ end
     ∂ₜ(n) == (w * n ^ 2 - m * n) + Δ(n)
   end
 
-  klaus2 ≃ SummationDecapode(parse_decapode(Klausmeier2))
+  klaus2 = SummationDecapode(parse_decapode(Klausmeier2))
 
   @test parse_result ≃ klaus2
 
-  # Lejeune Model
+  # Lejeune Model - Inference Difference Problems
   parse_result = decapode"
     ρ::Form0
     (μ, Λ, L)::Constant
@@ -1157,11 +1166,11 @@ end
     ∂ₜ(ρ) == (ρ * (((1 - μ) + (Λ - 1) * ρ) - ρ * ρ) + 0.5 * (L * L - ρ) * Δ(ρ)) - 0.125 * ρ * Δ(ρ) * Δ(ρ)
   end
 
-  lejeune ≃ SummationDecapode(parse_decapode(Lejeune))
+  lejeune = SummationDecapode(parse_decapode(Lejeune))
 
   @test parse_result ≃ lejeune
 
-  # Turing Continuous Ring Model
+  # Turing Continuous Ring Model - Inference Differences
   parse_result = decapode"
     (X, Y)::Form0
     (μ, ν, a, b, c, d)::Constant
@@ -1177,7 +1186,7 @@ end
     ∂ₜ(Y) == c * X + d * Y + ν * Δ(X)
   end
 
-  turing ≃ SummationDecapode(parse_decapode(TuringContinuousRing))
+  turing = SummationDecapode(parse_decapode(TuringContinuousRing))
 
   @test parse_result ≃ turing
 
@@ -1209,7 +1218,7 @@ end
     v̇ == ∂_noslip(v_up)
   end
 
-  bc ≃ SummationDecapode(parse_decapode(BoundaryConditions))
+  bc = SummationDecapode(parse_decapode(BoundaryConditions))
 
   @test parse_result ≃ bc
 
@@ -1231,11 +1240,11 @@ end
     Tₛ̇ == ((ASR - OLR) + HT) ./ C
   end
 
-  eb ≃ SummationDecapode(parse_decapode(EnergyBalance))
+  eb = SummationDecapode(parse_decapode(EnergyBalance))
 
   @test parse_result ≃ eb
 
-  # Equation of State Model
+  # Equation of State Model - Inference Differences
   parse_result = decapode"
     (b, T, S)::Form0
     (g, α, β)::Constant
@@ -1249,11 +1258,11 @@ end
     b == g * (α * T - β * S)
   end
 
-  eos ≃ SummationDecapode(parse_decapode(EquationOfState))
+  eos = SummationDecapode(parse_decapode(EquationOfState))
 
   @test parse_result ≃ eos
 
-  # Glens Law
+  # Glens Law - Inference Difference Issues
   parse_result = decapode"
     Γ::Form1
     (A, ρ, g, n)::Constant
@@ -1267,17 +1276,17 @@ end
     Γ == (2 / (n + 2)) * A * (ρ * g) ^ n
   end
 
-  glens ≃ SummationDecapode(parse_decapode(GlensLaw))
+  glens = SummationDecapode(parse_decapode(GlensLaw))
 
   @test parse_result ≃ glens
 
-  # Halfar (Eq. 2) Model
+  # Halfar (Eq. 2) Model - Inference Issues
   parse_result = decapode"
     h::Form0
     Γ::Form1
     n::Constant
               
-    ∂ₜ(h) == (∘(⋆, d, ⋆))(((Γ * d(h)) ∧ mag(♯(d(h))) ^ (n - 1)) ∧ h ^ (n + 2))"
+    ∂ₜ(h) == ∘(⋆, d, ⋆)(((Γ * d(h)) ∧ mag(♯(d(h))) ^ (n - 1)) ∧ h ^ (n + 2))"
 
   Halfar = quote
     h::Form0
@@ -1287,16 +1296,16 @@ end
     ∂ₜ(h) == (∘(⋆, d, ⋆))(((Γ * d(h)) ∧ mag(♯(d(h))) ^ (n - 1)) ∧ h ^ (n + 2))
   end
 
-  halfar ≃ SummationDecapode(parse_decapode(Halfar))
+  halfar = SummationDecapode(parse_decapode(Halfar))
 
   @test parse_result ≃ halfar
 
-  # Insolation Model
+  # Insolation Model - TODO: Implicit Multiplication not supported
   parse_result = decapode"
     Q::Form0
     cosϕᵖ::Constant
               
-    Q == 450cosϕᵖ"
+    Q == 450*cosϕᵖ"
 
   Insolation = quote
     Q::Form0
@@ -1305,16 +1314,16 @@ end
     Q == 450cosϕᵖ
   end
 
-  ins ≃ SummationDecapode(parse_decapode(Insolation))
+  ins = SummationDecapode(parse_decapode(Insolation))
 
   @test parse_result ≃ ins
 
-  # Tracer Model
+  # Tracer Model - Negative Numbers not supported
   parse_result = decapode"
     (c, C, F, c_up)::Form0
     (v, V, q)::Form1
               
-    c_up == (((-1 * (⋆)(L(v, (⋆)(c))) - (⋆)(L(V, (⋆)(c)))) - (⋆)(L(v, (⋆)(C)))) - (∘(⋆, d, ⋆))(q)) + F"
+    c_up == (((-1 * ⋆(L(v, ⋆(c))) - ⋆(L(V, ⋆(c)))) - ⋆(L(v, ⋆(C)))) - ∘(⋆, d, ⋆)(q)) + F"
 
   Tracer = quote
     (c, C, F, c_up)::Form0
@@ -1323,11 +1332,11 @@ end
     c_up == (((-1 * (⋆)(L(v, (⋆)(c))) - (⋆)(L(V, (⋆)(c)))) - (⋆)(L(v, (⋆)(C)))) - (∘(⋆, d, ⋆))(q)) + F
   end
 
-  trac ≃ SummationDecapode(parse_decapode(Tracer))
+  trac = SummationDecapode(parse_decapode(Tracer))
 
   @test parse_result ≃ trac
 
-  # Warming Model
+  # Warming Model - Negative Nums not supported
   parse_result = decapode"
     Tₛ::Form0
     A::Form1
@@ -1341,7 +1350,7 @@ end
     A == avg₀₁(5.8282 * 10 ^ (-0.236Tₛ) * 1.65e7)
   end
 
-  warm ≃ SummationDecapode(parse_decapode(Warming))
+  warm = SummationDecapode(parse_decapode(Warming))
 
   @test parse_result ≃ warm
 
