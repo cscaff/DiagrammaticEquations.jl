@@ -94,6 +94,7 @@ end
   @test PrecDivOperation("10/2")[1] == App2(:/, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
   @test PrecDivOperation("10 / 2")[1] == App2(:/, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
   @test PrecDivOperation("10 ∧ 2")[1] == App2(:∧, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
+  @test PrecDivOperation("C ∧₀₁ V")[1] == App2(:∧₀₁, DiagrammaticEquations.decapodes.Var(Symbol("C")), DiagrammaticEquations.decapodes.Var(Symbol("V")))
 end
 
 @testset "MultOperation" begin
@@ -110,6 +111,7 @@ end
   @test PrecMinusOperation("3 - 2")[1] == App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
   @test PrecMinusOperation("3 - 2 - 1")[1] ==  App2(:-, App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))), DiagrammaticEquations.decapodes.Lit(Symbol("1")))
   @test PrecMinusOperation("3 .- 2")[1] == App2(:.-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
+  @test PrecMinusOperation("3 ⊕₀₁ 4")[1] == App2(:⊕₀₁, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("4")))
 end
 
 @testset "PlusOperation" begin
@@ -136,7 +138,6 @@ end
 
 @testset "PrecPowerOperation Operation" begin
   @test PrecPowerOperation("a^b")[1] == App2(:^, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
- # @test PrecPowerOperation("C ∧₀₁ V")[1] == App2(:∧₀₁, DiagrammaticEquations.decapodes.Var(Symbol("C")), DiagrammaticEquations.decapodes.Var(Symbol("V")))
 end
 
 @testset "Terms" begin
