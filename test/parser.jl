@@ -4,7 +4,8 @@ using DiagrammaticEquations
 using DiagrammaticEquations: Term, Derivative, SummationOperation, MultOperation, Call, Args,
   Judgement, Statement, Line, Equation, List, Compose, TypeName, Grouping, DecapodeExpr, SingleLineComment, MultiLineComment, Ident,
   PrecMinusOperation, PrecDivOperation, PrecPowerOperation, Ident, CallName, CallList, PrecDivOp, PrecMinusOp, Atom, Digit
-PEG.setdebug!(true) # To disable: PEG.setdebug!(false)
+
+# PEG.setdebug!(true) # To disable: PEG.setdebug!(false)
 
 # Unit Tests
 ##############
@@ -92,12 +93,12 @@ end
   DiagrammaticEquations.decapodes.Var(:Y)
   )
   @test Equation("f(n+1, N+2) * ∂ₜ(X) == ∘(a, b)(c)")[1] == DiagrammaticEquations.decapodes.Eq(
-  DiagrammaticEquations.decapodes.Mult([App2(:f, DiagrammaticEquations.decapodes.Plus(
+  DiagrammaticEquations.decapodes.App2(:*, App2(:f, DiagrammaticEquations.decapodes.Plus(
   [DiagrammaticEquations.decapodes.Var(Symbol("n")), DiagrammaticEquations.decapodes.Lit(Symbol("1"))]),
   DiagrammaticEquations.decapodes.Plus(
   [DiagrammaticEquations.decapodes.Var(Symbol("N")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))])),
   Tan(DiagrammaticEquations.decapodes.Var(Symbol("X")))
-  ]),
+  ),
   AppCirc1([:a, :b], DiagrammaticEquations.decapodes.Var(:c))
   )
   @test Equation("Ċ == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)")[1] == DiagrammaticEquations.decapodes.Eq(
@@ -114,12 +115,12 @@ end
 end
 
 @testset "MultOperation" begin
-  @test MultOperation("a * b")[1] == DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b"))])
+  @test MultOperation("a * b")[1] == DiagrammaticEquations.decapodes.App2(:*, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
   @test MultOperation("a * 
-  b")[1] == DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b"))])
+  b")[1] == DiagrammaticEquations.decapodes.App2(:*, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
   @test MultOperation("a * b * c")[1] == DiagrammaticEquations.decapodes.Mult(
   [DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")), DiagrammaticEquations.decapodes.Var(Symbol("c"))])
-  @test MultOperation("2*d₀(C)")[1] == DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Lit(Symbol("2")), App1(:d₀, DiagrammaticEquations.decapodes.Var(Symbol("C")))])
+  @test MultOperation("2*d₀(C)")[1] == DiagrammaticEquations.decapodes.App2(:*, DiagrammaticEquations.decapodes.Lit(Symbol("2")), App1(:d₀, DiagrammaticEquations.decapodes.Var(Symbol("C"))))
 end
 
 @testset "Subtraction Operation" begin
@@ -127,6 +128,8 @@ end
   @test PrecMinusOperation("3 - 2 - 1")[1] ==  App2(:-, App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))), DiagrammaticEquations.decapodes.Lit(Symbol("1")))
   @test PrecMinusOperation("3 .- 2")[1] == App2(:.-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("2")))
   @test PrecMinusOperation("3 ⊕₀₁ 4")[1] == App2(:⊕₀₁, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("4")))
+  @test PrecMinusOperation("-3 - 4")[1] == App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("-3")), DiagrammaticEquations.decapodes.Lit(Symbol("4")))
+  @test PrecMinusOperation("3 - -4")[1] == App2(:-, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("-4")))
 end
 
 @testset "PlusOperation" begin
@@ -137,14 +140,14 @@ end
   @test SummationOperation("dt(X) + ∂ₜ(X)")[1] == DiagrammaticEquations.decapodes.Plus(
   [Tan(DiagrammaticEquations.decapodes.Var(Symbol("X"))), Tan(DiagrammaticEquations.decapodes.Var(Symbol("X")))])
   @test SummationOperation("a * b + c")[1] == DiagrammaticEquations.decapodes.Plus([
-  DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Var(Symbol("a")), 
-  DiagrammaticEquations.decapodes.Var(Symbol("b"))]), DiagrammaticEquations.decapodes.Var(Symbol("c"))])
-  @test SummationOperation("3 * (5 + 2)")[1] == DiagrammaticEquations.decapodes.Mult([
+  DiagrammaticEquations.decapodes.App2(:*, DiagrammaticEquations.decapodes.Var(Symbol("a")), 
+  DiagrammaticEquations.decapodes.Var(Symbol("b"))), DiagrammaticEquations.decapodes.Var(Symbol("c"))])
+  @test SummationOperation("3 * (5 + 2)")[1] == DiagrammaticEquations.decapodes.App2(:*,
   DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Plus(
   [DiagrammaticEquations.decapodes.Lit(Symbol("5")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))])
-  ])
+  )
   @test SummationOperation("3 * 5 + 2")[1] == DiagrammaticEquations.decapodes.Plus([
-  DiagrammaticEquations.decapodes.Mult([DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("5"))]),
+  DiagrammaticEquations.decapodes.App2(:*, DiagrammaticEquations.decapodes.Lit(Symbol("3")), DiagrammaticEquations.decapodes.Lit(Symbol("5"))),
   DiagrammaticEquations.decapodes.Lit(Symbol("2"))
   ])
   @test SummationOperation("10 / 2 + 3")[1] == Plus([App2(:/, DiagrammaticEquations.decapodes.Lit(Symbol("10")), DiagrammaticEquations.decapodes.Lit(Symbol("2"))), DiagrammaticEquations.decapodes.Lit(Symbol("3"))])
@@ -153,6 +156,7 @@ end
 
 @testset "PrecPowerOperation Operation" begin
   @test PrecPowerOperation("a^b")[1] == App2(:^, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
+  @test PrecPowerOperation("0.5^b")[1] == App2(:^, DiagrammaticEquations.decapodes.Lit(Symbol("0.5")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
 end
 
 @testset "Terms" begin
@@ -179,6 +183,7 @@ end
   @test Compose("∘(a, b, c)(d)")[1] == AppCirc1([:a, :b, :c], DiagrammaticEquations.decapodes.Var(:d))
   @test Compose("∘(a)(∂ₜ(X))")[1] == AppCirc1([:a], Tan(DiagrammaticEquations.decapodes.Var(Symbol("X"))))
   @test Compose("∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)")[1] == AppCirc1([:⋆₀⁻¹, :dual_d₁, :⋆₁], DiagrammaticEquations.decapodes.Var(:ϕ))
+  @test Compose("(⋆ ∘ ⋆)(C ∧ dX)")[1] == AppCirc1([:⋆, :⋆], App2(:∧, DiagrammaticEquations.decapodes.Var(Symbol("C")), DiagrammaticEquations.decapodes.Var(Symbol("dX"))))
 end
 
 @testset "Call" begin
@@ -223,6 +228,8 @@ end
   @test Atom("a")[1] == DiagrammaticEquations.decapodes.Var(Symbol("a"))
   @test Atom("23")[1] == DiagrammaticEquations.decapodes.Lit(Symbol("23"))
   @test Atom("-2")[1] == DiagrammaticEquations.decapodes.Lit(Symbol("-2"))
+  @test Atom("32.23")[1] == DiagrammaticEquations.decapodes.Lit(Symbol("32.23"))
+  @test Atom("1.65e7")[1] == DiagrammaticEquations.decapodes.Lit(Symbol("1.65e7"))
 end
 
 @testset "Identifiers" begin
@@ -233,7 +240,7 @@ end
 
 @testset "CallName" begin
   @test CallName("⊕")[1] == "⊕"
-  @test CallName("hello")[1] == "hello"
+  @test CallName("hello")[1] == :hello
 end
 
 @testset "PrecDivOp" begin
@@ -243,6 +250,21 @@ end
 @testset "PrecMinusOp" begin
   @test PrecMinusOp("-")[1] == "-"
 end
+
+# Summation and Mult Handling
+#############################
+
+@testset "Mult" begin
+  @test DecapodeExpr("ϕ ==  4*2*3*d₀(C)\n")[1] == parse_decapode(quote ϕ ==  4*2*3*d₀(C) end)
+  @test DecapodeExpr("ϕ == 4*2*3\n")[1] == parse_decapode(quote ϕ == 4*2*3 end)
+  @test DecapodeExpr("ϕ == 2*3\n")[1] == parse_decapode(quote ϕ == 2*3 end)
+end
+
+@testset "Sum" begin
+  @test DecapodeExpr("ϕ ==  4+2+3+d₀(C)\n")[1] == parse_decapode(quote ϕ ==  4+2+3+d₀(C) end)
+  @test DecapodeExpr("ϕ == 4+2\n")[1] == parse_decapode(quote ϕ == 4+2 end)
+end
+
 # Exception Handling Tests
 ##########################
 
@@ -413,7 +435,6 @@ end
   Ċ == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)
   ∂ₜ(C) == Ċ"
 
-  parse_decapode(quote ϕ ==  4*2*3*d₀(C) end)
 
   DiffusionExprBody3 =  quote
   (C, Ċ)::Form0
@@ -482,8 +503,6 @@ end
 
   # Because vars are infered, the two differ in names although they are identical in
   # structure. I have modified the names to match so that the test focuses on structure.
-  parsed_result[:name] = [:ϕ, Symbol("2"), Symbol("•2"), :C, :Ċ]
-
   DiffusionExprBody7 =  quote
     ϕ ==  2*d₀(C)
     ∂ₜ(C) == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)
@@ -562,7 +581,7 @@ end
       k::Constant{Point}
   
       ∂ₜ(X) == V
-      ∂ₜ(V) == -1*k*(X) # FAILING BECASE NEGATIVE NOT ALLOWED IN IDENT
+      ∂ₜ(V) == -1*k*(X)
     end))
 
     @test parsed_result ≃ pt5
@@ -787,20 +806,17 @@ end
     ∂ₜ(ρ) == (∘(⋆, d, ⋆))(d(Ψ) ∧ ρ) + β⁻¹ * Δ(ρ)
   end
 
-  # Infered names are changed through the string macro (Var 8, 9 indices switched).
-  parse_result[:name] = [:ρ, :Ψ, :β⁻¹, :ρ̇ , Symbol("•2"), Symbol("•3"), Symbol("•4"), Symbol("•6"), Symbol("•5")]
-
   jko = SummationDecapode(parse_decapode(JKO))
 
   @test parse_result ≃ jko
     
-  # Lie Model ------------------- NEED TO ADD COMPOSE INFIX SUPPORT
+  # Lie Model
   parse_result = decapode"
     C::Form0
     V::Form1
     dX::Form1
               
-    V == ((⋆) ∘ (⋆))(C ∧ dX)"
+    V == (⋆ ∘ ⋆)(C ∧ dX)"
 
   Lie = quote
     C::Form0
@@ -814,7 +830,7 @@ end
 
   @test parse_result ≃ lie
 
-  # Mohamed Eq. 10, N2 ----- negative num not supported
+  # Mohamed Eq. 10, N2
   parse_result = decapode"
     (𝐮, w)::DualForm1
     (P, 𝑝ᵈ)::DualForm0
@@ -838,7 +854,7 @@ end
 
   @test parse_result ≃ mohamed
 
-  # Momentum Model ----- FAILS b/c negative + testing inference differences
+  # Momentum Model
   parse_result = decapode"
     (f, b)::Form0
     (v, V, g, Fᵥ, uˢ, v_up)::Form1
@@ -847,7 +863,7 @@ end
               
     uˢ̇ == ∂ₜ(uˢ)
               
-    v_up == (((((((-1 * L(v, v) - L(V, v)) - L(v, V)) - f ∧ v) - (∘(⋆, d, ⋆))(uˢ) ∧ v) - d(p)) + b ∧ g) - (∘(⋆, d, ⋆))(τ)) + uˢ̇ + Fᵥ
+    v_up == (((((((-1 * L(v, v) - L(V, v)) - L(v, V)) - f ∧ v) - ∘(⋆, d, ⋆)(uˢ) ∧ v) - d(p)) + b ∧ g) - ∘(⋆, d, ⋆)(τ)) + uˢ̇ + Fᵥ
               
     uˢ̇ == force(U)"
 
@@ -894,7 +910,7 @@ end
 
   @test parse_result ≃ navier
 
-  # Oscillator Model FAILS Because of negative
+  # Oscillator Model
   parse_result = decapode"
     X::Form0
     V::Form0
@@ -916,7 +932,7 @@ end
 
   @test parse_result ≃ osc
 
-  # Poiseuille Model Most likely fails because of inference differences
+  # Poiseuille Model
   parse_result = decapode"
     P::Form0
     q::Form1
@@ -946,7 +962,7 @@ end
 
   @test parse_result ≃ pois
 
-  # Poiseuille Density Model Fails becase of negative
+  # Poiseuille Density Model
   parse_result = decapode"
     q::Form1
     (P, ρ)::Form0
@@ -960,7 +976,7 @@ end
               
     ∂ₜ(ρ) == ρ̇
               
-    ρ_up == (∘(⋆, d, ⋆))(-1 * (ρ ∧₀₁ q))
+    ρ_up == ∘(⋆, d, ⋆)(-1 * (ρ ∧₀₁ q))
               
     ρ̇ == ∂ρ(ρ_up)"
 
@@ -985,14 +1001,14 @@ end
   poisden = SummationDecapode(parse_decapode(PoiseuilleDensity))
 
   @test parse_result ≃ poisden
-
-  # Schroedinger Model Fails because of negative
+  
+  # Schroedinger Model
   parse_result = decapode"
     (i, h, m)::Constant
     V::Parameter
     Ψ::Form0
               
-    ∂ₜ(Ψ) == (((-1 * h ^ 2) / (2m)) * Δ(Ψ) + V * Ψ) / (i * h)"
+    ∂ₜ(Ψ) == (((-1 * h ^ 2) / (2*m)) * Δ(Ψ) + V * Ψ) / (i * h)"
 
   Schroedinger = quote
     (i, h, m)::Constant
@@ -1028,7 +1044,7 @@ end
 
   @test parse_result ≃ sup
 
-  # Gray-Scott Model Fails because of inference differences
+  # Gray-Scott Model
   parse_result = decapode"
     (U, V)::Form0
     UV2::Form0
@@ -1060,7 +1076,7 @@ end
 
   @test parse_result ≃ gs
 
-  # Brusselator Model - Fails because of inference differences
+  # Brusselator Model
   parse_result = decapode"
     (U, V)::Form0
     U2V::Form0
@@ -1069,8 +1085,8 @@ end
     F::Parameter
               
     U2V == (U .* U) .* V
-    U̇ == ((1 + U2V) - 4.4U) + α * Δ(U) + F
-    V̇ == (3.4U - U2V) + α * Δ(V)
+    U̇ == ((1 + U2V) - 4.4*U) + α * Δ(U) + F
+    V̇ == (3.4*U - U2V) + α * Δ(V)
               
     ∂ₜ(U) == U̇
     ∂ₜ(V) == V̇"
@@ -1094,7 +1110,7 @@ end
 
   @test parse_result ≃ brussel
 
-  # Kealy Model Fails because of inference differences
+  # Kealy Model
   parse_result = decapode"
     (n, w)::DualForm0
     dX::Form1
@@ -1114,7 +1130,7 @@ end
 
   @test parse_result ≃ kealy
 
-  # Klausmeier (Eq. 2a) Model - Testing inference differences
+  # Klausmeier (Eq. 2a) Model
   parse_result = decapode"
     (n, w)::DualForm0
     dX::Form1
@@ -1134,7 +1150,7 @@ end
 
   @test parse_result ≃ klaus
 
-  # Klausmeier (Eq. 2b) Model - Inference Differences
+  # Klausmeier (Eq. 2b) Model
   parse_result = decapode"
     (n, w)::DualForm0
     m::Constant
@@ -1152,7 +1168,7 @@ end
 
   @test parse_result ≃ klaus2
 
-  # Lejeune Model - Inference Difference Problems
+  # Lejeune Model
   parse_result = decapode"
     ρ::Form0
     (μ, Λ, L)::Constant
@@ -1170,7 +1186,7 @@ end
 
   @test parse_result ≃ lejeune
 
-  # Turing Continuous Ring Model - Inference Differences
+  # Turing Continuous Ring Model
   parse_result = decapode"
     (X, Y)::Form0
     (μ, ν, a, b, c, d)::Constant
@@ -1244,7 +1260,7 @@ end
 
   @test parse_result ≃ eb
 
-  # Equation of State Model - Inference Differences
+  # Equation of State Model
   parse_result = decapode"
     (b, T, S)::Form0
     (g, α, β)::Constant
@@ -1262,7 +1278,7 @@ end
 
   @test parse_result ≃ eos
 
-  # Glens Law - Inference Difference Issues
+  # Glens Law
   parse_result = decapode"
     Γ::Form1
     (A, ρ, g, n)::Constant
@@ -1280,7 +1296,7 @@ end
 
   @test parse_result ≃ glens
 
-  # Halfar (Eq. 2) Model - Inference Issues
+  # Halfar (Eq. 2) Model
   parse_result = decapode"
     h::Form0
     Γ::Form1
@@ -1318,7 +1334,7 @@ end
 
   @test parse_result ≃ ins
 
-  # Tracer Model - Negative Numbers not supported
+  # Tracer Model
   parse_result = decapode"
     (c, C, F, c_up)::Form0
     (v, V, q)::Form1
@@ -1336,12 +1352,12 @@ end
 
   @test parse_result ≃ trac
 
-  # Warming Model - Negative Nums not supported
+  # Warming Model
   parse_result = decapode"
     Tₛ::Form0
     A::Form1
               
-    A == avg₀₁(5.8282 * 10 ^ (-0.236Tₛ) * 1.65e7)"
+    A == avg₀₁(5.8282 * 10 ^ (-0.236*Tₛ) * 1.65e7)"
 
   Warming = quote
     Tₛ::Form0

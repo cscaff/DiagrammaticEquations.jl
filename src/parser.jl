@@ -41,8 +41,8 @@ export @decapode_str
 
 # TODO: Is the composition list just operators?
 # The composition rule supports the compostion of terms A over term b.
-@rule Compose = "∘" & lparen & ws & CallList & rparen & ws & lparen & ws & SummationOperation & rparen |> v -> AppCirc1(v[4], v[9])
-
+@rule Compose = "∘" & lparen & ws & CallList & rparen & ws & lparen & ws & SummationOperation & rparen |> v -> AppCirc1(v[4], v[9]),
+  lparen & CallName & (ws & "∘" & ws & CallName)[+] & rparen & ws & lparen & SummationOperation & rparen |> v -> AppCirc1(vcat(Symbol(v[2]), Symbol.(last.(v[3]))), v[7])
 # The call rule supports function calls of the form f(x) and g(x, y).
 @rule Call = CallName & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
 
@@ -55,15 +55,15 @@ SummationOperation |> v -> [v]
 @rule List = Ident & (ws & comma & Ident)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 @rule CallList = CallName & (ws & comma & CallName)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 
-@rule Atom = Digit , Ident
+@rule Atom = Digit , (r"-" & Ident |> v -> App1(:-, decapodes.Var(v[2]))), (Ident |> v -> decapodes.Var(v))
 
-@rule Ident = r"[^+*:{}→\n;=,\-−¦⊕⊖⊞⊟∪∨⊔±∓∔∸≏⊎⊻⊽⋎⋓⟇⧺⧻⨈⨢⨣⨤⨥⨦⨧⨨⨩⨪⨫⨬⨭⨮⨹⨺⩁⩂⩅⩊⩌⩏⩐⩒⩔⩖⩗⩛⩝⩡⩢⩣\\\/⌿÷%&··⋅∘×∩∧⊗⊘⊙⊚⊛⊠⊡⊓∗∙∤⅋≀⊼⋄⋆⋇⋉⋊⋋⋌⋏⋒⟑⦸⦼⦾⦿⧶⧷⨇⨰⨱⨲⨳⨴⨵⨶⨷⨸⨻⨼⨽⩀<⩃⩄⩋⩍⩎⩑⩓⩕⩘⩚⩜⩞⩟⩠⫛⊍▷⨝⟕⟖⟗⨟\^↑↓⇵⟰⟱⤈⤉⤊⤋⤒⤓⥉⥌⥍⥏⥑⥔⥕⥘⥙⥜⥝⥠⥡⥣⥥⥮⥯￪￬\|\(\)\s]+" |> v -> decapodes.Var(Symbol(v))
-@rule Digit = r"([-]?)[0-9]+" |> v -> Lit(Symbol(v))
+@rule Ident = r"[^+*:{}→\n;=,\-−¦⊕⊖⊞⊟∪∨⊔±∓∔∸≏⊎⊻⊽⋎⋓⟇⧺⧻⨈⨢⨣⨤⨥⨦⨧⨨⨩⨪⨫⨬⨭⨮⨹⨺⩁⩂⩅⩊⩌⩏⩐⩒⩔⩖⩗⩛⩝⩡⩢⩣\\\/⌿÷%&··⋅∘×∩∧⊗⊘⊙⊚⊛⊠⊡⊓∗∙∤⅋≀⊼⋄⋆⋇⋉⋊⋋⋌⋏⋒⟑⦸⦼⦾⦿⧶⧷⨇⨰⨱⨲⨳⨴⨵⨶⨷⨸⨻⨼⨽⩀<⩃⩄⩋⩍⩎⩑⩓⩕⩘⩚⩜⩞⩟⩠⫛⊍▷⨝⟕⟖⟗⨟\^↑↓⇵⟰⟱⤈⤉⤊⤋⤒⤓⥉⥌⥍⥏⥑⥔⥕⥘⥙⥜⥝⥠⥡⥣⥥⥮⥯￪￬\|\(\)\s]+" |> v -> Symbol(v)
+@rule Digit = r"([-]?)([0-9]+)(\.[0-9]+(e[0-9]+)?)?" |> v -> Lit(Symbol(v))
 
 @rule PrecMinusOp = r"((\.?)(-|−|¦|⊕|⊖|⊞|⊟|∪|∨|⊔|±|∓|∔|∸|≏|⊎|⊻|⊽|⋎|⋓|⟇|⧺|⧻|⨈|⨢|⨣|⨤|⨥|⨦|⨧|⨨|⨩|⨪|⨫|⨬|⨭|⨮|⨹|⨺|⩁|⩂|⩅|⩊|⩌|⩏|⩐|⩒|⩔|⩖|⩗|⩛|⩝|⩡|⩢|⩣|\|\+\+\||\|\\\|\|))|(\.\+)" & opSuffixes |> v -> v[1]*v[2]
 
 # TODO: Do we want "∘" to also be used in PrecDivOp with Compose???
-@rule PrecDivOp = r"((\.?)(/|⌿|÷|%|&|·|·|⋅|∘|×|∩|∧|⊗|⊘|⊙|⊚|⊛|⊠|⊡|⊓|∗|∙|∤|⅋|≀|⊼|⋄|⋆|⋇|⋉|⋊|⋋|⋌|⋏|⋒|⟑|⦸|⦼|⦾|⦿|⧶|⧷|⨇|⨰|⨱|⨲|⨳|⨴|⨵|⨶|⨷|⨸|⨻|⨼|⨽|⩀|<|⩃|⩄|⩋|⩍|⩎|⩑|⩓|⩕|⩘|⩚|⩜|⩞|⩟|⩠|⫛|⊍|▷|⨝|⟕|⟖|⟗|⨟|\|\\\\\|))|(\.\*)"  & opSuffixes |> v -> v[1]*v[2]
+@rule PrecDivOp = r"((\.?)(/|⌿|÷|%|&|·|·|⋅|×|∩|∧|⊗|⊘|⊙|⊚|⊛|⊠|⊡|⊓|∗|∙|∤|⅋|≀|⊼|⋄|⋆|⋇|⋉|⋊|⋋|⋌|⋏|⋒|⟑|⦸|⦼|⦾|⦿|⧶|⧷|⨇|⨰|⨱|⨲|⨳|⨴|⨵|⨶|⨷|⨸|⨻|⨼|⨽|⩀|<|⩃|⩄|⩋|⩍|⩎|⩑|⩓|⩕|⩘|⩚|⩜|⩞|⩟|⩠|⫛|⊍|▷|⨝|⟕|⟖|⟗|⨟|\|\\\\\|))|(\.\*)"  & opSuffixes |> v -> v[1]*v[2]
 
 @rule PrecPowerOp = r"(\.?)(\^|↑|↓|⇵|⟰|⟱|⤈|⤉|⤊|⤋|⤒|⤓|⥉|⥌|⥍|⥏|⥑|⥔|⥕|⥘|⥙|⥜|⥝|⥠|⥡|⥣|⥥|⥮|⥯|￪|￬)"  & opSuffixes |> v -> v[1]*v[2]
 
@@ -77,7 +77,13 @@ function BuildMultOperation(v)
   if isempty(v[2])
     return v[1]  
   else
-    return Mult(vcat(v[1], last.(v[2])))
+    # Create List of operands
+    multList = vcat(v[1], map(x -> [x[end]], v[2])...)
+    if length(multList) == 2
+      return App2(Symbol("*"), multList[1], multList[2])
+    else
+      return Mult(vcat(v[1], last.(v[2])))
+    end
   end
 end
 
@@ -94,7 +100,6 @@ function BuildApp2(v)
       result = vcat([Applied], result[4:end])
     end
     return result[1]
-    print("App TEST: $result")
 end
 
 """ BuildPlusOperation
