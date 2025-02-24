@@ -1,7 +1,4 @@
-using PEG
 import Catlab.Parsers.ParserCore
-
-export @decapode_str
 
 # Bodies are made up of lines where each line holds a statement 
 @rule DecapodeExpr = (MultiLineComment, Line)[*] & ws |> v -> BuildExpr(v[1])
@@ -46,7 +43,6 @@ export @decapode_str
 @rule Call = CallName & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
 
 @rule CallName = UnaryOperator , Ident
-@rule UnaryOperator = PrecMinusOp , PrecDivOp , PrecPowerOp
 
 @rule Args = (SummationOperation & ws & comma & SummationOperation) |> v -> [v[1], v[4]],
 SummationOperation |> v -> [v]
@@ -54,10 +50,12 @@ SummationOperation |> v -> [v]
 @rule List = Ident & (ws & comma & Ident)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 @rule CallList = CallName & (ws & comma & CallName)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 
-@rule Atom = Digit , (r"-" & Ident |> v -> App1(:-, decapodes.Var(v[2]))), (Ident |> v -> decapodes.Var(v))
+@rule Atom = Digit , (UnaryOperator & Ident |> v -> App1(Symbol(v[1]), decapodes.Var(v[2]))), (Ident |> v -> decapodes.Var(v))
 
 @rule Ident = r"[^+*:{}→\n;=,\-−¦⊕⊖⊞⊟∪∨⊔±∓∔∸≏⊎⊻⊽⋎⋓⟇⧺⧻⨈⨢⨣⨤⨥⨦⨧⨨⨩⨪⨫⨬⨭⨮⨹⨺⩁⩂⩅⩊⩌⩏⩐⩒⩔⩖⩗⩛⩝⩡⩢⩣\\\/⌿÷%&··⋅∘×∩∧⊗⊘⊙⊚⊛⊠⊡⊓∗∙∤⅋≀⊼⋄⋆⋇⋉⋊⋋⋌⋏⋒⟑⦸⦼⦾⦿⧶⧷⨇⨰⨱⨲⨳⨴⨵⨶⨷⨸⨻⨼⨽⩀<⩃⩄⩋⩍⩎⩑⩓⩕⩘⩚⩜⩞⩟⩠⫛⊍▷⨝⟕⟖⟗⨟\^↑↓⇵⟰⟱⤈⤉⤊⤋⤒⤓⥉⥌⥍⥏⥑⥔⥕⥘⥙⥜⥝⥠⥡⥣⥥⥮⥯￪￬\|\(\)\s]+" |> v -> Symbol(v)
 @rule Digit = r"([-]?)([0-9]+)(\.[0-9]+(e[0-9]+)?)?" |> v -> Lit(Symbol(v))
+
+@rule UnaryOperator = PrecMinusOp , PrecDivOp , PrecPowerOp
 
 @rule PrecMinusOp = r"((\.?)(-|−|¦|⊕|⊖|⊞|⊟|∪|∨|⊔|±|∓|∔|∸|≏|⊎|⊻|⊽|⋎|⋓|⟇|⧺|⧻|⨈|⨢|⨣|⨤|⨥|⨦|⨧|⨨|⨩|⨪|⨫|⨬|⨭|⨮|⨹|⨺|⩁|⩂|⩅|⩊|⩌|⩏|⩐|⩒|⩔|⩖|⩗|⩛|⩝|⩡|⩢|⩣|\|\+\+\||\|\\\|\|))|(\.\+)" & OpSuffixes |> v -> v[1]*v[2]
 
