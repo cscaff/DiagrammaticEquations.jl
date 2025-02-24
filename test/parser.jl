@@ -12,7 +12,6 @@ using DiagrammaticEquations: DecapodeExpr, SingleLineComment, MultiLineComment, 
   PrecPowerOperation, Term, Grouping, Derivative, Compose, Call, CallName, UnaryOperator, Args, List, 
   CallList, Atom, Ident, Digit, PrecMinusOp, PrecDivOp, PrecPowerOp, OpSuffixes
 
-
 # Unit Tests
 #############
 
@@ -253,6 +252,7 @@ end
   @test Ident("abc")[1] == :abc
   @test Ident("Ċ")[1] == Symbol("Ċ")
   @test Ident("meep")[1] == :meep
+  @test Ident("a")[1] == :a
 end
 
 @testset "Digits" begin
@@ -265,6 +265,7 @@ end
   @test PrecMinusOp("-")[1] == "-"
   @test PrecMinusOp("⊕")[1] == "⊕"
   @test PrecMinusOp("⊕²³")[1] == "⊕²³"
+  @test PrecMinusOp("⨨")[1] == "⨨"
 end
 
 @testset "Division Precedence Operator" begin
@@ -272,6 +273,7 @@ end
   @test PrecDivOp("∧")[1] == "∧"
   @test PrecDivOp(".*")[1] == ".*"
   @test PrecDivOp("×₆₇")[1] == "×₆₇"
+  @test PrecDivOp("⋉")[1] == "⋉"
 end
 
 @testset "Power Precedence Operator" begin

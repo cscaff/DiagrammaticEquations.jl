@@ -1,13 +1,54 @@
 import Catlab.Parsers.ParserCore
 
-# Bodies are made up of lines where each line holds a statement 
+# Syntactic Analysis
+####################
+
+""" Decapode Parsing Expression Grammar
+
+The Decapode Parsing Expression Grammar (PEG) is a formal grammar that defines the syntax of the Decapode DSL.
+The grammar is used to parse Decapode code into an Abstract Syntax Tree (AST) representation which is then constructed
+into an ACSet. For example, take the following string representation of a Decapode code snippet:
+
+```julia
+parse_result = decapode"
+    C::Form0{X}
+    (V, ϕ)::Form1{X}
+
+    ϕ == ∧₀₁(C,V)"
+```
+This is parsed into the following tree structure:
+
+```julia
+# Variables
+v1 = Judgement(:C, :Form0, :X)
+v2  Judgement(:V, :Form1, :X)
+v3 = Judgement(:ϕ, :Form1, :X)
+
+# Equation
+eq = Eq(
+  DiagrammaticEquations.decapodes.Var(:ϕ),
+  App2(:∧₀₁, 
+    DiagrammaticEquations.decapodes.Var(:C), 
+    DiagrammaticEquations.decapodes.Var(:V)
+      )
+  )
+
+# Decapode Expression
+Expr = DecaExpr([v1, v2, v3], [eq])
+```
+
+This AST representation is then constructed into an ACSet representation.
+The mechanics of the Decapode are identical to those seen in the typical Decapode
+macro. Those documents can be consulted further for information on Decapodes.
+"""
+# A Decapode Expression consists of a list of comments or lines of code that hold judgements and equations. 
 @rule DecapodeExpr = (MultiLineComment, Line)[*] & ws |> v -> BuildExpr(v[1])
 
-#Comments are ignored by the parser. #==#
+# Comments can be single line '#' or multiline '#=...=#' and are ignored by the parser.
 @rule SingleLineComment = "#" & r"[^\r\n]*" |> v -> nothing
 @rule MultiLineComment = "#=" & r"(?:[^=]|=(?!#)|\s)*" & "=#" |> v -> nothing
 
-# Lines are made up of a statement or comment followed by an end of line character. 
+# Lines are made up of a statement or single line comments followed by an end of line character. 
 @rule Line = ws & (SingleLineComment , Statement) & r"[^\S\r\n]*" & EOL |> v -> v[2]
 
 # Statements can include either type judgements or equations.
@@ -15,59 +56,150 @@ import Catlab.Parsers.ParserCore
 
 # A judgement is a statement of the form A::B. It marks a type assignment.
 @rule Judgement = (Ident , (lparen & ws & List & ws & rparen)) & "::" & TypeName |> v -> BuildJudgement(v)
+# A type name can be either be of form 'name' or 'name{X}'.
 @rule TypeName = Ident & ("{" & Ident & "}")[:?] |> v -> BuildTypeName(v)
-  
+ 
+# An equation consists of two operations matched by an "==" operator.
 @rule Equation = SummationOperation & ws & "==" & ws & SummationOperation |> v -> Eq(v[1], v[5]) 
 
-# The operation rule supports addition and multiplication of terms.
-@rule SummationOperation = PrecMinusOperation & (ws & "+" & ws & PrecMinusOperation)[*] |> v -> BuildPlusOperation(v)
+# Binary Operations are supported by the following rules.
+# They also support all known Julia binary operations and their corresponding precdences.
+# Lower Rules have higher precedence.
+@rule SummationOperation = PrecMinusOperation & (ws & "+" & ws & PrecMinusOperation)[*] |> v -> BuildSummationOperation(v)
+# Ex: -,¦,⊕,⊖,...
 @rule PrecMinusOperation = PrecDivOperation & (ws & PrecMinusOp & ws & PrecDivOperation)[*] |> v -> BuildApp2(v)
-
+# Ex: /,⌿,÷,...
 @rule PrecDivOperation = MultOperation & (ws & PrecDivOp & ws & MultOperation)[*] |> v -> BuildApp2(v)
 @rule MultOperation = PrecPowerOperation & (ws & "*" & ws & PrecPowerOperation)[*] |> v -> BuildMultOperation(v)
-
+# Ex: ^,↑,↓,...
 @rule PrecPowerOperation = Term & (ws & PrecPowerOp & ws & Term)[*] |> v -> BuildApp2(v)
 
+# Terms can consist of groupings, deriatives, function compositions, function calls, and atomic elements such as digits/identifiers.
 @rule Term = Grouping, Derivative, Compose, Call, Atom
 
-# The grouping rule supports the grouping of terms using parentheses. Higher precedence than +/*.
+# The grouping rule supports the grouping of terms using parentheses. Highest Precdence '(...)'.
 @rule Grouping = lparen & ws & SummationOperation & ws & rparen |> v -> v[3]
 
 # The derivative rule supports derivatives of the form ∂ₜ(x) and dt(x).
 @rule Derivative = ("∂ₜ" , "dt") & lparen & ws & Ident & ws & rparen |> v -> Tan(decapodes.Var(Symbol(v[4])))
 
-# The composition rule supports the compostion of terms A over term b.
-@rule Compose = "∘" & lparen & ws & CallList & rparen & ws & lparen & ws & SummationOperation & rparen |> v -> AppCirc1(v[4], v[9]),
-  lparen & CallName & (ws & "∘" & ws & CallName)[+] & rparen & ws & lparen & SummationOperation & rparen |> v -> AppCirc1(vcat(Symbol(v[2]), Symbol.(last.(v[3]))), v[7])
+# The composition rule supports the compostion of terms A... over term b.
+# Supports prefix and infix notation.
+@rule Compose = "∘" & lparen & ws & CallList & rparen & ws & lparen & ws & SummationOperation & rparen |> 
+  v -> AppCirc1(v[4], v[9]),
+  lparen & CallName & (ws & "∘" & ws & CallName)[+] & rparen & ws & lparen & SummationOperation & rparen |> 
+  v -> AppCirc1(vcat(Symbol(v[2]), Symbol.(last.(v[3]))), v[7])
+
 # The call rule supports function calls of the form f(x) and g(x, y).
 @rule Call = CallName & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
 
+# A call name can be unaryoperators or identifiers
 @rule CallName = UnaryOperator , Ident
 
+# Argumennts represet a list of argument consisting of operationss within a function call
 @rule Args = (SummationOperation & ws & comma & SummationOperation) |> v -> [v[1], v[4]],
 SummationOperation |> v -> [v]
 
+# A list is a comma seperated list of identifiers.
 @rule List = Ident & (ws & comma & Ident)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
+# A call list differs from list as it supports a comma seperated list of call names (Unary operators / Identifiers).
 @rule CallList = CallName & (ws & comma & CallName)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 
+# Atoms are the smallest unit of a term and can be either digits or identifiers.
+# Identifiers can support unary operators on front Ex: Negation: '-K'.
 @rule Atom = Digit , (UnaryOperator & Ident |> v -> App1(Symbol(v[1]), decapodes.Var(v[2]))), (Ident |> v -> decapodes.Var(v))
 
-@rule Ident = r"[^+*:{}→\n;=,\-−¦⊕⊖⊞⊟∪∨⊔±∓∔∸≏⊎⊻⊽⋎⋓⟇⧺⧻⨈⨢⨣⨤⨥⨦⨧⨨⨩⨪⨫⨬⨭⨮⨹⨺⩁⩂⩅⩊⩌⩏⩐⩒⩔⩖⩗⩛⩝⩡⩢⩣\\\/⌿÷%&··⋅∘×∩∧⊗⊘⊙⊚⊛⊠⊡⊓∗∙∤⅋≀⊼⋄⋆⋇⋉⋊⋋⋌⋏⋒⟑⦸⦼⦾⦿⧶⧷⨇⨰⨱⨲⨳⨴⨵⨶⨷⨸⨻⨼⨽⩀<⩃⩄⩋⩍⩎⩑⩓⩕⩘⩚⩜⩞⩟⩠⫛⊍▷⨝⟕⟖⟗⨟\^↑↓⇵⟰⟱⤈⤉⤊⤋⤒⤓⥉⥌⥍⥏⥑⥔⥕⥘⥙⥜⥝⥠⥡⥣⥥⥮⥯￪￬\|\(\)\s]+" |> v -> Symbol(v)
-@rule Digit = r"([-]?)([0-9]+)(\.[0-9]+(e[0-9]+)?)?" |> v -> Lit(Symbol(v))
+# Identifiers consists of non operator/reserved characters
+# They cannot start with digits
+@rule Ident = r"""([^0-9\+\*:{}→\n;=,\-−¦⊕⊖⊞⊟∪∨⊔±∓∔∸≏⊎⊻⊽⋎⋓⟇⧺⧻⨈⨢⨣⨤⨥⨦⨧⨨⨩⨪⨫⨬⨭⨮⨹⨺⩁⩂⩅⩊⩌⩏⩐⩒
+⩔⩖⩗⩛⩝⩡⩢⩣\\\/⌿÷%&··⋅∘×∩∧⊗⊘⊙⊚⊛⊠⊡⊓∗∙∤⅋≀⊼⋄⋆⋇⋉⋊⋋⋌⋏⋒⟑⦸⦼⦾⦿⧶⧷⨇⨰⨱⨲⨳⨴⨵⨶⨷⨸⨻⨼⨽⩀<⩃⩄⩋⩍⩎⩑⩓⩕⩘⩚⩜
+⩞⩟⩠⫛⊍▷⨝⟕⟖⟗⨟\^↑↓⇵⟰⟱⤈⤉⤊⤋⤒⤓⥉⥌⥍⥏⥑⥔⥕⥘⥙⥜⥝⥠⥡⥣⥥⥮⥯￪￬\|\(\)\s][^\+\*:{}→\n;=,\-−¦⊕⊖⊞⊟∪∨⊔±∓∔∸≏⊎⊻⊽⋎⋓⟇⧺⧻
+⨈⨢⨣⨤⨥⨦⨧⨨⨩⨪⨫⨬⨭⨮⨹⨺⩁⩂⩅⩊⩌⩏⩐⩒⩔⩖⩗⩛⩝⩡⩢⩣\\\/⌿÷%&··⋅∘×∩∧⊗⊘⊙⊚⊛⊠⊡⊓∗∙∤⅋≀⊼⋄⋆⋇⋉⋊⋋⋌⋏⋒⟑⦸⦼⦾⦿⧶⧷⨇⨰
+⨱⨲⨳⨴⨵⨶⨷⨸⨻⨼⨽⩀<⩃⩄⩋⩍⩎⩑⩓⩕⩘⩚⩜⩞⩟⩠⫛⊍▷⨝⟕⟖⟗⨟\^↑↓⇵⟰⟱⤈⤉⤊⤋⤒⤓⥉⥌⥍⥏⥑⥔⥕⥘⥙⥜⥝⥠⥡⥣⥥⥮⥯￪￬\|\(\)\s]*)""" |> v -> Symbol(v)
 
+# Digits consist of numerical characters
+@rule Digit = r"([\-]?)([0-9]+)(\.[0-9]+(e[0-9]+)?)?" |> v -> Lit(Symbol(v))
+
+# Unary operators support operators that work on one operand
 @rule UnaryOperator = PrecMinusOp , PrecDivOp , PrecPowerOp
 
-@rule PrecMinusOp = r"((\.?)(-|−|¦|⊕|⊖|⊞|⊟|∪|∨|⊔|±|∓|∔|∸|≏|⊎|⊻|⊽|⋎|⋓|⟇|⧺|⧻|⨈|⨢|⨣|⨤|⨥|⨦|⨧|⨨|⨩|⨪|⨫|⨬|⨭|⨮|⨹|⨺|⩁|⩂|⩅|⩊|⩌|⩏|⩐|⩒|⩔|⩖|⩗|⩛|⩝|⩡|⩢|⩣|\|\+\+\||\|\\\|\|))|(\.\+)" & OpSuffixes |> v -> v[1]*v[2]
+# Unary operators with the same precedence as subtraction
+@rule PrecMinusOp = r"((\.?)(\-|−|¦|⊕|⊖|⊞|⊟|∪|∨|⊔|±|∓|∔|∸|≏|⊎|⊻|⊽|⋎|⋓|⟇|⧺|⧻|⨈|⨢|⨣|⨤|⨥|⨦|⨧|⨨|⨩|⨪|⨫|⨬|⨭|⨮|⨹|⨺|⩁|⩂|⩅|⩊|⩌|⩏|⩐|⩒|⩔|⩖|⩗|⩛|⩝|⩡|⩢|⩣|\|\+\+\||\|\\\|\|))|(\.\+)" & OpSuffixes |> v -> v[1]*v[2]
 
-@rule PrecDivOp = r"((\.?)(/|⌿|÷|%|&|·|·|⋅|×|∩|∧|⊗|⊘|⊙|⊚|⊛|⊠|⊡|⊓|∗|∙|∤|⅋|≀|⊼|⋄|⋆|⋇|⋉|⋊|⋋|⋌|⋏|⋒|⟑|⦸|⦼|⦾|⦿|⧶|⧷|⨇|⨰|⨱|⨲|⨳|⨴|⨵|⨶|⨷|⨸|⨻|⨼|⨽|⩀|<|⩃|⩄|⩋|⩍|⩎|⩑|⩓|⩕|⩘|⩚|⩜|⩞|⩟|⩠|⫛|⊍|▷|⨝|⟕|⟖|⟗|⨟|\|\\\\\|))|(\.\*)" & OpSuffixes |> v -> v[1]*v[2]
+# Unary operators with the same precedence as division
+@rule PrecDivOp = r"""((\.?)(/|⌿|÷|%|&|·|·|⋅|×|∩|∧|⊗|⊘|⊙|⊚|⊛|⊠|⊡|⊓|∗|∙|∤|⅋|≀|⊼|⋄|⋆|⋇|⋉|⋊|⋋|⋌|⋏|⋒|⟑|⦸|⦼|⦾|⦿|⧶|⧷|⨇|⨰|⨱|⨲|⨳|⨴|⨵|⨶|⨷|⨸|⨻|⨼|⨽|⩀|<|⩃|⩄|⩋|⩍|⩎|⩑|⩓|⩕|⩘|⩚|⩜|⩞|⩟|⩠|⫛|⊍|▷|⨝|⟕|⟖|⟗|⨟|\|\\\\\|))|(\.\*)""" & OpSuffixes |> v -> v[1]*v[2]
 
+# Unary operators with the same precedence as exponential operations
 @rule PrecPowerOp = r"(\.?)(\^|↑|↓|⇵|⟰|⟱|⤈|⤉|⤊|⤋|⤒|⤓|⥉|⥌|⥍|⥏|⥑|⥔|⥕|⥘|⥙|⥜|⥝|⥠|⥡|⥣|⥥|⥮|⥯|￪|￬)"  & OpSuffixes |> v -> v[1]*v[2]
 
+# Operator suffixes allow characters that come after an operator
 @rule OpSuffixes = r"[₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎²³¹ʰʲʳʷʸˡˢˣᴬᴮᴰᴱᴳᴴᴵᴶᴷᴸᴹᴺᴼᴾᴿᵀᵁᵂᵃᵇᵈᵉᵍᵏᵐᵒᵖᵗᵘᵛᵝᵞᵟᵠᵡᵢᵣᵤᵥᵦᵧᵨᵩᵪᶜᶠᶥᶦᶫᶰᶸᶻᶿ⁰ⁱ⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿₐₑₒₓₕₖₗₘₙₚₛₜⱼⱽ′″‴‵‶‷⁗]*"
-  
- """ BuildMultOperation
 
-Takes in an input array (AST) for a multiplication operation and returns a corresponding Mult object. Handles non mult operations as well.
+# Semantic Analysis
+####################
+
+""" BuildExpr
+
+Takes in an input array (AST) for a DecaExpr body, filters out comments, and returns a corresponding DecaExpr object.
+"""
+function BuildExpr(v)
+  filtered_lines = filter(x -> x !== nothing, v)
+  judges = []
+  eqns = []
+
+  foreach(filtered_lines) do s
+    @match s begin
+      ::Judgement => push!(judges, s)
+      ::Vector{Judgement} => append!(judges, s)
+        ::Eq => push!(eqns, s)
+        _ => error("Statement containing $s of type $(typeof(s)) was not added.")
+      end
+    end
+    return DecaExpr(judges, eqns)
+end
+
+""" BuildJudgement
+
+Takes in an input array (AST) for a Judgement (Type Declaration) and returns a corresponding Decapodes Judgement object
+"""
+function BuildJudgement(v)
+  pattern = (v[1], v[3])
+  @match pattern begin
+    ([a...], [b...]) => map(sym -> Judgement(sym, Symbol(b[1]), Symbol(b[2])), Symbol.(a[3]))
+    ([a...], b)       => map(sym -> Judgement(sym, Symbol(b), :I), Symbol.(a[3]))
+    (a, [b...])       => Judgement(Symbol(a), Symbol(b[1]), Symbol(b[2]))
+    (a, b)             => Judgement(Symbol(a), Symbol(b), :I)
+  end
+end
+
+"""" BuildTypeName
+
+Takes in an input array (AST) for a type name and returns a corresponding AST type name object based 
+on the proper structure. Ex: Form0 versus Form0{X}.
+"""
+function BuildTypeName(v)
+  if isempty(v[2])
+    return Symbol(v[1])
+  else
+    return [Symbol(v[1]), Symbol(collect(Iterators.flatten(v[2]))[2])]
+  end
+end
+
+""" BuildSummationOperation
+
+Takes in an input array (AST) for a summation operation and returns a corresponding Plus object.
+"""
+function BuildSummationOperation(v)
+  if isempty(v[2])
+    return v[1]
+  else
+    return Plus(vcat(v[1], last.(v[2])))
+  end
+end
+
+""" BuildMultOperation
+
+Takes in an input array (AST) for a multiplication operation and returns a corresponding Mult object or App2 depending on the input size.
 """
 function BuildMultOperation(v)
   if isempty(v[2])
@@ -83,9 +215,10 @@ function BuildMultOperation(v)
   end
 end
 
-""" BuildMinusOperation
+""" BuildApp2
 
-TO Do
+Takes in an input array (AST) for all binary operations except summation/multiplication and returns the result of the operation
+as an App2.
 """
 function BuildApp2(v)
     # Creates array of operations
@@ -98,22 +231,10 @@ function BuildApp2(v)
     return result[1]
 end
 
-""" BuildPlusOperation
-
-Takes in an input array (AST) for a multiplication operation and returns a corresponding Mult object. Handles non mult operations as well.
-"""
-function BuildPlusOperation(v)
-  if isempty(v[2])
-    return v[1]
-  else
-    return Plus(vcat(v[1], last.(v[2])))
-  end
-end
-
-
 """ BuildCall
 
-Takes in an input array (AST) for a call expression and returns a corresponding App1 or App2 object.
+Takes in an input array (AST) for a function call expression and returns a corresponding App1 or App2 object 
+depending on the amount of parameters (one or two).
 """
 function BuildCall(v)
   if length(v[4]) == 1
@@ -123,69 +244,13 @@ function BuildCall(v)
   end
 end
 
-""" BuildJudgement
-
-Takes in an input array (AST) for a Judgement corresponding Judgement object
-"""
-function BuildJudgement(v)
-  pattern = (v[1], v[3])
-  @match pattern begin
-    ([a...], [b...]) => map(sym -> Judgement(sym, Symbol(b[1]), Symbol(b[2])), Symbol.(a[3]))
-    ([a...], b)       => map(sym -> Judgement(sym, Symbol(b), :I), Symbol.(a[3]))
-    (a, [b...])       => Judgement(Symbol(a), Symbol(b[1]), Symbol(b[2]))
-    (a, b)             => Judgement(Symbol(a), Symbol(b), :I)
-end
-end
-
-"""" BuildTypeName
-
-Takes in an input array (AST) for a TypeName and returns a corresponding TypeName object based 
-on the proper structure. Ex: Form0 versus Form0{X}.
-"""
-function BuildTypeName(v)
-  if isempty(v[2])
-    return Symbol(v[1])
-  else
-    return [Symbol(v[1]), Symbol(collect(Iterators.flatten(v[2]))[2])]
-  end
-end
-
-# """ ParseIdent
-
-# Takes in an input array (AST) for an identifier and returns a corresponding Var or Lit object.
-# """
-# function ParseIdent(v)
-#   if typeof(Catlab.Parsers.ParserCore.parse_identifier(v)) == Symbol
-#     return decapodes.Var(Symbol(v))
-#   else
-#     return Lit(Symbol(v))
-#   end
-# end
-
-"""
-BuildExpr
-
-Takes in an input array (AST) for a body and returns a corresponding DecaExpr object.
-"""
-function BuildExpr(v)
-  filtered_lines = filter(x -> x !== nothing, v)
-  judges = []
-  eqns = []
-  foreach(filtered_lines) do s
-    @match s begin
-      ::Judgement => push!(judges, s)
-      ::Vector{Judgement} => append!(judges, s)
-        ::Eq => push!(eqns, s)
-        _ => error("Statement containing $s of type $(typeof(s)) was not added.")
-      end
-    end
-    return DecaExpr(judges, eqns)
-end
+# Macro Call
+#############
 
 """ Relation String Macro
 
-This macro parses a string representation of a UWD into an ACSet representation. It operates by parsing a string input into an UWDExpr object.
-Then it constructs a RelationDiagram object from the UWDExpr object.
+This macro parses a string representation of a Decapode into an ACSet representation. It operates by parsing a string input into an DecaExpr 
+(Abstract Syntax Tree) object. Then it constructs a ACSet representation from the AST.
 """
 macro decapode_str(y::String)
   :(SummationDecapode(parse_whole(DecapodeExpr, $(y * "\n"))))
