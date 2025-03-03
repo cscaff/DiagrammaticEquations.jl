@@ -91,7 +91,7 @@ macro. Those documents can be consulted further for information on Decapodes.
   v -> AppCirc1(vcat(Symbol(v[2]), Symbol.(last.(v[3]))), v[7])
 
 # The call rule supports function calls of the form f(x) and g(x, y).
-@rule Call = CallName & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
+@rule Call = (CallName, lparen & ws & CallName & ws & rparen) & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
 
 # A call name can be unaryoperators or identifiers
 @rule CallName = UnaryOperator , Ident
@@ -237,10 +237,18 @@ Takes in an input array (AST) for a function call expression and returns a corre
 depending on the amount of parameters (one or two).
 """
 function BuildCall(v)
-  if length(v[4]) == 1
-    return App1(Symbol(v[1]), v[4][1])
+  if length(v[1]) == 1
+    if length(v[4]) == 1
+      return App1(Symbol(v[1]), v[4][1])
+    else
+      return App2(Symbol(v[1]), v[4][1], v[4][2])
+    end
   else
-    return App2(Symbol(v[1]), v[4][1], v[4][2])
+    if length(v[4]) == 1
+      return App1(Symbol(v[1][3]), v[4][1])
+    else
+      return App2(Symbol(v[1][3]), v[4][1], v[4][2])
+    end
   end
 end
 

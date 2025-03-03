@@ -204,6 +204,7 @@ end
   @test Call("⊕(a)")[1] == App1(:⊕, DiagrammaticEquations.decapodes.Var(Symbol("a")))
   @test Call("HI(a, b)")[1] == App2(:HI, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
   @test Call("d(Ψ)")[1] == App1(:d, DiagrammaticEquations.decapodes.Var(Symbol("Ψ")))
+  @test Call("(d)(Ψ)")[1] == App1(:d, DiagrammaticEquations.decapodes.Var(Symbol("Ψ")))
 end
 
 @testset "Function Call Names" begin
