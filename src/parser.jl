@@ -92,6 +92,7 @@ macro. Those documents can be consulted further for information on Decapodes.
 
 # The call rule supports function calls of the form f(x) and g(x, y).
 @rule Call = (CallName, lparen & ws & CallName & ws & rparen) & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
+#new rule has issues
 
 # A call name can be unaryoperators or identifiers
 @rule CallName = UnaryOperator , Ident
@@ -202,6 +203,7 @@ end
 Takes in an input array (AST) for a multiplication operation and returns a corresponding Mult object or App2 depending on the input size.
 """
 function BuildMultOperation(v)
+  #println("Debug: v = ", v)
   if isempty(v[2])
     return v[1]  
   else
@@ -237,18 +239,16 @@ Takes in an input array (AST) for a function call expression and returns a corre
 depending on the amount of parameters (one or two).
 """
 function BuildCall(v)
-  if length(v[1]) == 1
-    if length(v[4]) == 1
-      return App1(Symbol(v[1]), v[4][1])
-    else
-      return App2(Symbol(v[1]), v[4][1], v[4][2])
-    end
+  FuncCall = v[1]
+  #if the function call has parentheses around it, extract the function name Ex: (f)(x) -> f(x)
+  if isa(FuncCall, Vector) && length(FuncCall) == 5
+    FuncCall = FuncCall[3]
+  end
+
+  if length(v[4]) == 1
+      return App1(Symbol(FuncCall), v[4][1])
   else
-    if length(v[4]) == 1
-      return App1(Symbol(v[1][3]), v[4][1])
-    else
-      return App2(Symbol(v[1][3]), v[4][1], v[4][2])
-    end
+      return App2(Symbol(FuncCall), v[4][1], v[4][2])
   end
 end
 
