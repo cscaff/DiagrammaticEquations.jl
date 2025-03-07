@@ -70,7 +70,7 @@ macro. Those documents can be consulted further for information on Decapodes.
 @rule PrecMinusOperation = PrecDivOperation & (ws & PrecMinusOp & ws & PrecDivOperation)[*] |> v -> BuildApp2(v)
 # Ex: /,⌿,÷,...
 @rule PrecDivOperation = MultOperation & (ws & PrecDivOp & ws & MultOperation)[*] |> v -> BuildApp2(v)
-@rule MultOperation = (lparen & ws & PrecPowerOperation & ws & rparen, PrecPowerOperation) & (ws & "*" & ws & PrecPowerOperation, PrecPowerOperation)[*] |> v -> BuildMultOperation(v)
+@rule MultOperation = (lparen & ws & PrecPowerOperation & ws & rparen, PrecPowerOperation) & ((ws & "*" & ws & PrecPowerOperation), PrecPowerOperation)[*] |> v -> BuildMultOperation(v)
 # Ex: ^,↑,↓,...
 @rule PrecPowerOperation = Term & (ws & PrecPowerOp & ws & Term)[*] |> v -> BuildApp2(v)
 
