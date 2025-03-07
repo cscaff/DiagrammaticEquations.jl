@@ -559,21 +559,20 @@ end
 
     @test parsed_result_1 ≃ pt2_1
 
-    # TODO Multiplication by Parenthesis not currently implemented
-    # parsed_result_2 = decapode"
-    #   (A, B, X)::Form0{X}
-    #   A == (X)F"
+    parsed_result_2 = decapode"
+       (A, B, X)::Form0{X}
+       A == (X)F"
 
-    # ParseTest2_2 = quote
-    #   (A, B, X)::Form0{X}
-    #   A == (X)F
-    # end
+     ParseTest2_2 = quote
+       (A, B, X)::Form0{X}
+       A == (X)F
+     end
 
-    # pt2_2 = SummationDecapode(parse_decapode(ParseTest2_2))
+     pt2_2 = SummationDecapode(parse_decapode(ParseTest2_2))
 
-    # @test parsed_result_2 ≃ pt2_2 
+     @test parsed_result_2 ≃ pt2_2 
 
-    # @test parsed_result_1 != parsed_result_2
+     @test parsed_result_1 != parsed_result_2
   
     # Chained Tvars test
     # TODO: Do we want explict support for higher order Tvars?
