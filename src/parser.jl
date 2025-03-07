@@ -70,7 +70,7 @@ macro. Those documents can be consulted further for information on Decapodes.
 @rule PrecMinusOperation = PrecDivOperation & (ws & PrecMinusOp & ws & PrecDivOperation)[*] |> v -> BuildApp2(v)
 # Ex: /,⌿,÷,...
 @rule PrecDivOperation = MultOperation & (ws & PrecDivOp & ws & MultOperation)[*] |> v -> BuildApp2(v)
-@rule MultOperation = PrecPowerOperation & (ws & "*" & ws & PrecPowerOperation)[*] |> v -> BuildMultOperation(v)
+@rule MultOperation = (lparen & ws & PrecPowerOperation & ws & rparen, PrecPowerOperation) & (ws & "*" & ws & PrecPowerOperation, PrecPowerOperation)[*] |> v -> BuildMultOperation(v)
 # Ex: ^,↑,↓,...
 @rule PrecPowerOperation = Term & (ws & PrecPowerOp & ws & Term)[*] |> v -> BuildApp2(v)
 
@@ -204,15 +204,24 @@ Takes in an input array (AST) for a multiplication operation and returns a corre
 """
 function BuildMultOperation(v)
   #println("Debug: v = ", v)
-  if isempty(v[2])
-    return v[1]  
+  Op1 = v[1]
+  Op2 = v[2]
+  #println("Debug: v[2] = ", v[2])
+  #println("Debug: length v[2] = ", length(v[2]))
+  if isa(Op1, Vector) && length(Op1) == 5
+    Op1 = Op1[3]
+  end
+  if isempty(Op2)
+    #return v[1]  
+    return Op1
   else
+    normalizedOp2 = map(x -> isa(x, Vector) ? x : ["", "*", "", x], Op2)
     # Create List of operands
-    multList = vcat(v[1], map(x -> [x[end]], v[2])...)
+    multList = vcat(Op1, map(x -> [x[end]], normalizedOp2)...)
     if length(multList) == 2
       return App2(Symbol("*"), multList[1], multList[2])
     else
-      return Mult(vcat(v[1], last.(v[2])))
+      return Mult(vcat(Op1, last.(normalizedOp2)))
     end
   end
 end

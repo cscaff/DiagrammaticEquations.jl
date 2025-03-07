@@ -145,8 +145,13 @@ end
   @test PrecDivOperation("A .* B")[1] == App2(:.*, DiagrammaticEquations.decapodes.Var(Symbol("A")), DiagrammaticEquations.decapodes.Var(Symbol("B")))
 end
 
-@testset "Multilpication Operations" begin
+@testset "Multiplication Operations" begin
   @test MultOperation("a * b")[1] == App2(:*, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
+  @test MultOperation("(a)b")[1] == App2(:*, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
+  @test MultOperation("3(a)b")[1] == Mult(
+    [Lit(Symbol("3")), DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b"))]
+  )
+  @test MultOperation("(a) * b")[1] == App2(:*, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
   @test MultOperation("a * 
   b")[1] == App2(:*, DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")))
   @test MultOperation("a * b * c")[1] == Mult(
