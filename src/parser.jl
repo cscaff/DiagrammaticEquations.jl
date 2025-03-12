@@ -85,7 +85,8 @@ macro. Those documents can be consulted further for information on Decapodes.
 
 # The composition rule supports the compostion of terms A... over term b.
 # Supports prefix and infix notation.
-@rule Compose = "∘" & lparen & ws & CallList & rparen & ws & lparen & ws & SummationOperation & rparen |> 
+# TODO: Add Parenthesis support around callList prefix notation
+@rule Compose = ("∘" & lparen & ws & CallList & rparen) & ws & lparen & ws & SummationOperation & rparen |> 
   v -> AppCirc1(v[4], v[9]),
   lparen & CallName & (ws & "∘" & ws & CallName)[+] & rparen & ws & lparen & SummationOperation & rparen |> 
   v -> AppCirc1(vcat(Symbol(v[2]), Symbol.(last.(v[3]))), v[7])
@@ -104,6 +105,7 @@ SummationOperation |> v -> [v]
 # A list is a comma seperated list of identifiers.
 @rule List = Ident & (ws & comma & Ident)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 # A call list differs from list as it supports a comma seperated list of call names (Unary operators / Identifiers).
+# TODO: Add parentheses support around callNames 
 @rule CallList = CallName & (ws & comma & CallName)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 
 # Atoms are the smallest unit of a term and can be either digits or identifiers.

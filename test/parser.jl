@@ -187,6 +187,7 @@ end
 
 @testset "Compose" begin
   @test Compose("∘(a, b)(c)")[1] == AppCirc1([:a, :b], DiagrammaticEquations.decapodes.Var(:c))
+  # @test Compose("(∘(a, b))(c)")[1] == AppCirc1([:a, :b], DiagrammaticEquations.decapodes.Var(:c))
   @test Compose("∘(a, b, c)(d)")[1] == AppCirc1([:a, :b, :c], DiagrammaticEquations.decapodes.Var(:d))
   @test Compose("∘(a)(∂ₜ(X))")[1] == AppCirc1([:a], Tan(DiagrammaticEquations.decapodes.Var(Symbol("X"))))
   @test Compose("∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)")[1] == AppCirc1([:⋆₀⁻¹, :dual_d₁, :⋆₁], DiagrammaticEquations.decapodes.Var(:ϕ))
@@ -709,12 +710,11 @@ end
   @test parse_result_semi ≃ supdp
 
   # Heat Transfer Model 
-  # TODO: '(⋆)' Parenthesis around call name not supported
   parse_result = decapode" 
     (HT, Tₛ)::Form0
     (D, cosϕᵖ, cosϕᵈ)::Constant
     
-    HT == (D ./ cosϕᵖ) .* ⋆(d(cosϕᵈ .* ⋆(d(Tₛ))))"
+    HT == (D ./ cosϕᵖ) .* (⋆)(d(cosϕᵈ .* (⋆)(d(Tₛ))))"
 
   HeatTransfer = quote
     (HT, Tₛ)::Form0
@@ -1343,12 +1343,11 @@ end
   @test parse_result ≃ halfar
 
   # Insolation Model
-  # TODO: Implicit Multiplication not supported '450cosϕᵖ' vs '450*cosϕᵖ' 
   parse_result = decapode"
     Q::Form0
     cosϕᵖ::Constant
               
-    Q == 450*cosϕᵖ"
+    Q == 450cosϕᵖ"
 
   Insolation = quote
     Q::Form0
@@ -1365,8 +1364,8 @@ end
   parse_result = decapode"
     (c, C, F, c_up)::Form0
     (v, V, q)::Form1
-              
-    c_up == (((-1 * ⋆(L(v, ⋆(c))) - ⋆(L(V, ⋆(c)))) - ⋆(L(v, ⋆(C)))) - ∘(⋆, d, ⋆)(q)) + F"
+
+    c_up == (((-1 * (⋆)(L(v, (⋆)(c))) - (⋆)(L(V, (⋆)(c)))) - (⋆)(L(v, (⋆)(C)))) - ∘(⋆, d, ⋆)(q)) + F"
 
   Tracer = quote
     (c, C, F, c_up)::Form0
