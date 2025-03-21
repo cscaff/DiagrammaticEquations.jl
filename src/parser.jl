@@ -84,12 +84,13 @@ macro. Those documents can be consulted further for information on Decapodes.
 @rule Derivative = ("∂ₜ" , "dt") & lparen & ws & Ident & ws & rparen |> v -> Tan(decapodes.Var(Symbol(v[4])))
 
 # The composition rule supports the compostion of terms A... over term b.
-# Supports prefix and infix notation.
-# TODO: Add Parenthesis support around callList prefix notation
-@rule Compose = ("∘" & lparen & ws & CallList & rparen) & ws & lparen & ws & SummationOperation & rparen |> 
-  v -> AppCirc1(v[4], v[9]),
-  lparen & CallName & (ws & "∘" & ws & CallName)[+] & rparen & ws & lparen & SummationOperation & rparen |> 
-  v -> AppCirc1(vcat(Symbol(v[2]), Symbol.(last.(v[3]))), v[7])
+@rule Compose = composeCall & lparen & ws & SummationOperation & ws & rparen |> v -> AppCirc1(v[1], v[4])
+# ComposeCall supports the function call name.
+@rule composeCall = lparen & ws & composeList & ws & rparen |> v -> v[3],
+  composeList
+# ComposeList supports prefix and infix notation for function calls.
+@rule composeList = "∘" & lparen & ws & CallList & ws & rparen |> v -> v[4],
+  lparen & CallName & (ws & "∘" & ws & CallName)[+] & rparen |> v -> vcat(Symbol(v[2]), Symbol.(last.(v[3])))
 
 # The call rule supports function calls of the form f(x) and g(x, y).
 @rule Call = (CallName, lparen & ws & CallName & ws & rparen) & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
@@ -123,7 +124,7 @@ SummationOperation |> v -> [v]
 # Digits consist of numerical characters
 @rule Digit = r"([\-]?)([0-9]+)(\.[0-9]+(e[0-9]+)?)?" |> v -> Lit(Symbol(v))
 
-# Unary operators support operators that work on one operand
+# Unary operators support operators that work on one operand525 170 8618
 @rule UnaryOperator = PrecMinusOp , PrecDivOp , PrecPowerOp
 
 # Unary operators with the same precedence as subtraction

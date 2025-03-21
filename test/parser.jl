@@ -187,11 +187,14 @@ end
 
 @testset "Compose" begin
   @test Compose("∘(a, b)(c)")[1] == AppCirc1([:a, :b], DiagrammaticEquations.decapodes.Var(:c))
-  # @test Compose("(∘(a, b))(c)")[1] == AppCirc1([:a, :b], DiagrammaticEquations.decapodes.Var(:c))
+  @test Compose("(∘(a, b))(c)")[1] == AppCirc1([:a, :b], DiagrammaticEquations.decapodes.Var(:c))
   @test Compose("∘(a, b, c)(d)")[1] == AppCirc1([:a, :b, :c], DiagrammaticEquations.decapodes.Var(:d))
   @test Compose("∘(a)(∂ₜ(X))")[1] == AppCirc1([:a], Tan(DiagrammaticEquations.decapodes.Var(Symbol("X"))))
   @test Compose("∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)")[1] == AppCirc1([:⋆₀⁻¹, :dual_d₁, :⋆₁], DiagrammaticEquations.decapodes.Var(:ϕ))
   @test Compose("(⋆ ∘ ⋆)(C ∧ dX)")[1] == AppCirc1(
+    [:⋆, :⋆], App2(:∧, DiagrammaticEquations.decapodes.Var(Symbol("C")), DiagrammaticEquations.decapodes.Var(Symbol("dX")))
+  )
+  @test Compose("((⋆ ∘ ⋆))(C ∧ dX)")[1] == AppCirc1(
     [:⋆, :⋆], App2(:∧, DiagrammaticEquations.decapodes.Var(Symbol("C")), DiagrammaticEquations.decapodes.Var(Symbol("dX")))
   )
 end
@@ -552,108 +555,107 @@ end
     (A, B, X)::Form0{X}
     A == X(F)"
 
-    ParseTest2_1 = quote
+  ParseTest2_1 = quote
+    (A, B, X)::Form0{X}
+    A == X(F)
+  end
+  pt2_1 = SummationDecapode(parse_decapode(ParseTest2_1))
+
+  @test parsed_result_1 ≃ pt2_1
+
+  parsed_result_2 = decapode"
       (A, B, X)::Form0{X}
-      A == X(F)
-    end
-    pt2_1 = SummationDecapode(parse_decapode(ParseTest2_1))
+      A == (X)F"
 
-    @test parsed_result_1 ≃ pt2_1
-
-    parsed_result_2 = decapode"
-       (A, B, X)::Form0{X}
-       A == (X)F"
-
-     ParseTest2_2 = quote
-       (A, B, X)::Form0{X}
-       A == (X)F
-     end
-
-     pt2_2 = SummationDecapode(parse_decapode(ParseTest2_2))
-
-     @test parsed_result_2 ≃ pt2_2 
-
-     @test parsed_result_1 != parsed_result_2
-  
-    # Chained Tvars test
-    # TODO: Do we want explict support for higher order Tvars?
-    parsed_result = decapode"
-      D == ∂ₜ(C)
-      E == ∂ₜ(D)"
-
-    ParseTest3 = quote
-      D == ∂ₜ(C)
-      E == ∂ₜ(D)
+    ParseTest2_2 = quote
+      (A, B, X)::Form0{X}
+      A == (X)F
     end
 
-    pt3 = SummationDecapode(parse_decapode(ParseTest3))
+    pt2_2 = SummationDecapode(parse_decapode(ParseTest2_2))
 
-    @test parsed_result ≃ pt3
+    @test parsed_result_2 ≃ pt2_2 
 
-    # Do not rename TVars if they are given a name.
-    parsed_result = decapode"
-      X::Form0{Point}
-      V::Form0{Point}
-  
-      k::Constant{Point}
-  
-      ∂ₜ(X) == V
-      ∂ₜ(V) == -1*k*(X)"
+    @test parsed_result_1 != parsed_result_2
 
-    pt5 = SummationDecapode(parse_decapode(quote
-      X::Form0{Point}
-      V::Form0{Point}
-  
-      k::Constant{Point}
-  
-      ∂ₜ(X) == V
-      ∂ₜ(V) == -1*k*(X)
-    end))
+  # Chained Tvars test
+  parsed_result = decapode"
+    D == ∂ₜ(C)
+    E == ∂ₜ(D)"
 
-    @test parsed_result ≃ pt5
+  ParseTest3 = quote
+    D == ∂ₜ(C)
+    E == ∂ₜ(D)
+  end
 
-    # Recursive Expr
-    parse_result = decapode"
-      x::Form0{X}
-      y::Form0{X}
-      z::Form0{X}
-  
-      ∂ₜ(z) == f1(x) + ∘(g, h)(y)
-      y == F(f2(x), ρ(x,z))"
+  pt3 = SummationDecapode(parse_decapode(ParseTest3))
 
-    Recursion = quote
-      x::Form0{X}
-      y::Form0{X}
-      z::Form0{X}
-  
-      ∂ₜ(z) == f1(x) + ∘(g, h)(y)
-      y == F(f2(x), ρ(x,z))
-    end
-  
-    rdp = SummationDecapode(parse_decapode(Recursion))
+  @test parsed_result ≃ pt3
 
-    @test parse_result ≃ rdp
+  # Do not rename TVars if they are given a name.
+  parsed_result = decapode"
+    X::Form0{Point}
+    V::Form0{Point}
 
-    # Diffusion Diagram
-    parse_result = decapode"
-      (C, Ċ)::Form0{X}
-      ϕ::Form1{X}
+    k::Constant{Point}
 
-      # Fick's first law
-      ϕ ==  ∘(k, d₀)(C)
-      # Diffusion equation
-      Ċ == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)
-      ∂ₜ(C) == Ċ"
+    ∂ₜ(X) == V
+    ∂ₜ(V) == -1*k*(X)"
 
-    DiffusionExprBody =  quote
-      (C, Ċ)::Form0{X}
-      ϕ::Form1{X}
+  pt5 = SummationDecapode(parse_decapode(quote
+    X::Form0{Point}
+    V::Form0{Point}
 
-      # Fick's first law
-      ϕ ==  ∘(k, d₀)(C)
-      # Diffusion equation
-      Ċ == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)
-      ∂ₜ(C) == Ċ
+    k::Constant{Point}
+
+    ∂ₜ(X) == V
+    ∂ₜ(V) == -1*k*(X)
+  end))
+
+  @test parsed_result ≃ pt5
+
+  # Recursive Expr
+  parse_result = decapode"
+    x::Form0{X}
+    y::Form0{X}
+    z::Form0{X}
+
+    ∂ₜ(z) == f1(x) + ∘(g, h)(y)
+    y == F(f2(x), ρ(x,z))"
+
+  Recursion = quote
+    x::Form0{X}
+    y::Form0{X}
+    z::Form0{X}
+
+    ∂ₜ(z) == f1(x) + ∘(g, h)(y)
+    y == F(f2(x), ρ(x,z))
+  end
+
+  rdp = SummationDecapode(parse_decapode(Recursion))
+
+  @test parse_result ≃ rdp
+
+  # Diffusion Diagram
+  parse_result = decapode"
+    (C, Ċ)::Form0{X}
+    ϕ::Form1{X}
+
+    # Fick's first law
+    ϕ ==  ∘(k, d₀)(C)
+    # Diffusion equation
+    Ċ == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)
+    ∂ₜ(C) == Ċ"
+
+  DiffusionExprBody =  quote
+    (C, Ċ)::Form0{X}
+    ϕ::Form1{X}
+
+    # Fick's first law
+    ϕ ==  ∘(k, d₀)(C)
+    # Diffusion equation
+    Ċ == ∘(⋆₀⁻¹, dual_d₁, ⋆₁)(ϕ)
+    ∂ₜ(C) == Ċ
   end
 
   ddp = SummationDecapode(parse_decapode(DiffusionExprBody))
@@ -823,7 +825,7 @@ end
     (ρ, Ψ)::Form0
     β⁻¹::Constant
               
-    ∂ₜ(ρ) == ∘(⋆, d, ⋆)(d(Ψ) ∧ ρ) + β⁻¹ * Δ(ρ)"
+    ∂ₜ(ρ) == (∘(⋆, d, ⋆))(d(Ψ) ∧ ρ) + β⁻¹ * Δ(ρ)"
 
   JKO = quote
     (ρ, Ψ)::Form0
@@ -842,7 +844,7 @@ end
     V::Form1
     dX::Form1
               
-    V == (⋆ ∘ ⋆)(C ∧ dX)"
+    V == ((⋆ ∘ ⋆))(C ∧ dX)"
 
   Lie = quote
     C::Form0
