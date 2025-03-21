@@ -42,7 +42,7 @@ The mechanics of the Decapode are identical to those seen in the typical Decapod
 macro. Those documents can be consulted further for information on Decapodes.
 """
 # A Decapode Expression consists of a list of comments or lines of code that hold judgements and equations. 
-@rule DecapodeExpr = (MultiLineComment, Line)[*] & ws |> v -> BuildExpr(v[1])
+@rule DecapodeExpr = (MultiLineComment , Line)[*] & ws |> v -> BuildExpr(v[1])
 
 # Comments can be single line '#' or multiline '#=...=#' and are ignored by the parser.
 @rule SingleLineComment = "#" & r"[^\r\n]*" |> v -> nothing
@@ -70,12 +70,12 @@ macro. Those documents can be consulted further for information on Decapodes.
 @rule PrecMinusOperation = PrecDivOperation & (ws & PrecMinusOp & ws & PrecDivOperation)[*] |> v -> BuildApp2(v)
 # Ex: /,⌿,÷,...
 @rule PrecDivOperation = MultOperation & (ws & PrecDivOp & ws & MultOperation)[*] |> v -> BuildApp2(v)
-@rule MultOperation = (lparen & ws & PrecPowerOperation & ws & rparen, PrecPowerOperation) & ((ws & "*" & ws & PrecPowerOperation), PrecPowerOperation)[*] |> v -> BuildMultOperation(v)
+@rule MultOperation = (lparen & ws & PrecPowerOperation & ws & rparen , PrecPowerOperation) & ((ws & "*" & ws & PrecPowerOperation) , PrecPowerOperation)[*] |> v -> BuildMultOperation(v)
 # Ex: ^,↑,↓,...
 @rule PrecPowerOperation = Term & (ws & PrecPowerOp & ws & Term)[*] |> v -> BuildApp2(v)
 
 # Terms can consist of groupings, deriatives, function compositions, function calls, and atomic elements such as digits/identifiers.
-@rule Term = Grouping, Derivative, Compose, Call, Atom
+@rule Term = Grouping , Derivative , Compose , Call , Atom
 
 # The grouping rule supports the grouping of terms using parentheses. Highest Precdence '(...)'.
 @rule Grouping = lparen & ws & SummationOperation & ws & rparen |> v -> v[3]
@@ -93,7 +93,7 @@ macro. Those documents can be consulted further for information on Decapodes.
   lparen & CallName & (ws & "∘" & ws & CallName)[+] & rparen |> v -> vcat(Symbol(v[2]), Symbol.(last.(v[3])))
 
 # The call rule supports function calls of the form f(x) and g(x, y).
-@rule Call = (CallName, lparen & ws & CallName & ws & rparen) & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
+@rule Call = (CallName , lparen & ws & CallName & ws & rparen) & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
 #new rule has issues
 
 # A call name can be unaryoperators or identifiers
