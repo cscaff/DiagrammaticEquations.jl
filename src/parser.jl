@@ -93,7 +93,7 @@ macro. Those documents can be consulted further for information on Decapodes.
   lparen & CallName & (ws & "∘" & ws & CallName)[+] & rparen |> v -> vcat(Symbol(v[2]), Symbol.(last.(v[3])))
 
 # The call rule supports function calls of the form f(x) and g(x, y).
-@rule Call = (lparen)[:?] & ws & CallName & ws & (rparen)[:?] & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
+@rule Call = (CallName, lparen & ws & CallName & ws & rparen) & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
 
 # A call name can be unaryoperators or identifiers
 @rule CallName = UnaryOperator , Ident
@@ -250,10 +250,16 @@ Takes in an input array (AST) for a function call expression and returns a corre
 depending on the amount of parameters (one or two).
 """
 function BuildCall(v)
-  if length(v[8]) == 1
-    return App1(Symbol(v[3]), v[8][1])
+  FuncCall = v[1]
+  #if the function call has parentheses around it, extract the function name Ex: (f)(x) -> f(x)
+  if isa(FuncCall, Vector) && length(FuncCall) == 5
+    FuncCall = FuncCall[3]
+  end
+
+  if length(v[4]) == 1
+      return App1(Symbol(FuncCall), v[4][1])
   else
-    return App2(Symbol(v[3]), v[8][1], v[8][2])
+      return App2(Symbol(FuncCall), v[4][1], v[4][2])
   end
 end
 

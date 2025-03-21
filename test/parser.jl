@@ -158,6 +158,11 @@ end
     [DiagrammaticEquations.decapodes.Var(Symbol("a")), DiagrammaticEquations.decapodes.Var(Symbol("b")), DiagrammaticEquations.decapodes.Var(Symbol("c"))]
   )
   @test MultOperation("2*d₀(C)")[1] == App2(:*, Lit(Symbol("2")), App1(:d₀, DiagrammaticEquations.decapodes.Var(Symbol("C"))))
+  @test MultOperation("f(n+1, N+2) * ∂ₜ(X)")[1] == App2(:*, 
+    App2(:f,
+      Plus([DiagrammaticEquations.decapodes.Var(Symbol("n")), Lit(Symbol("1"))]),
+      Plus([DiagrammaticEquations.decapodes.Var(Symbol("N")), Lit(Symbol("2"))])),
+    Tan(DiagrammaticEquations.decapodes.Var(Symbol("X"))))
 end
 
 @testset "Power Precedence Operations" begin
@@ -564,19 +569,19 @@ end
   @test parsed_result_1 ≃ pt2_1
 
   parsed_result_2 = decapode"
-      (A, B, X)::Form0{X}
-      A == (X)F"
+    (A, B, X)::Form0{X}
+    A == (X)F"
 
-    ParseTest2_2 = quote
-      (A, B, X)::Form0{X}
-      A == (X)F
-    end
+  ParseTest2_2 = quote
+    (A, B, X)::Form0{X}
+    A == (X)F
+  end
 
-    pt2_2 = SummationDecapode(parse_decapode(ParseTest2_2))
+  pt2_2 = SummationDecapode(parse_decapode(ParseTest2_2))
 
-    @test parsed_result_2 ≃ pt2_2 
+  @test parsed_result_2 ≃ pt2_2 
 
-    @test parsed_result_1 != parsed_result_2
+  @test parsed_result_1 != parsed_result_2
 
   # Chained Tvars test
   parsed_result = decapode"
