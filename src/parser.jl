@@ -94,7 +94,6 @@ macro. Those documents can be consulted further for information on Decapodes.
 
 # The call rule supports function calls of the form f(x) and g(x, y).
 @rule Call = (CallName, lparen & ws & CallName & ws & rparen) & lparen & ws & Args & ws & rparen |> v -> BuildCall(v)
-
 # A call name can be unaryoperators or identifiers
 @rule CallName = UnaryOperator , Ident
 
@@ -104,7 +103,6 @@ macro. Those documents can be consulted further for information on Decapodes.
 
 # A list is a comma seperated list of identifiers.
 @rule List = Ident & (ws & comma & Ident)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
-
 # A call list differs from list as it supports a comma seperated list of call names (Unary operators / Identifiers).
 @rule CallList = CallName & (ws & comma & CallName)[*] |> v -> vcat(Symbol(v[1]), Symbol.(last.(v[2])))
 
@@ -171,9 +169,9 @@ function BuildJudgement(v)
   pattern = (v[1], v[3])
   @match pattern begin
     ([a...], [b...]) => map(sym -> Judgement(sym, Symbol(b[1]), Symbol(b[2])), Symbol.(a[3]))
-    ([a...], b)       => map(sym -> Judgement(sym, Symbol(b), :I), Symbol.(a[3]))
-    (a, [b...])       => Judgement(Symbol(a), Symbol(b[1]), Symbol(b[2]))
-    (a, b)             => Judgement(Symbol(a), Symbol(b), :I)
+    ([a...], b)      => map(sym -> Judgement(sym, Symbol(b), :I), Symbol.(a[3]))
+    (a, [b...])      => Judgement(Symbol(a), Symbol(b[1]), Symbol(b[2]))
+    (a, b)           => Judgement(Symbol(a), Symbol(b), :I)
   end
 end
 
