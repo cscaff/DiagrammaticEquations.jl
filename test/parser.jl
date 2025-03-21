@@ -281,6 +281,7 @@ end
   @test PrecMinusOp("⊕")[1] == "⊕"
   @test PrecMinusOp("⊕²³")[1] == "⊕²³"
   @test PrecMinusOp("⨨")[1] == "⨨"
+  @test PrecMinusOp("⨪")[1] == "⨪"
 end
 
 @testset "Division Precedence Operator" begin
@@ -289,6 +290,7 @@ end
   @test PrecDivOp(".*")[1] == ".*"
   @test PrecDivOp("×₆₇")[1] == "×₆₇"
   @test PrecDivOp("⋉")[1] == "⋉"
+  @test PrecDivOp("⦸")[1] == "⦸"
 end
 
 @testset "Power Precedence Operator" begin
