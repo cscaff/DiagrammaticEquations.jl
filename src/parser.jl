@@ -70,7 +70,7 @@ macro. Those documents can be consulted further for information on Decapodes.
 @rule PrecMinusOperation = PrecDivOperation & (ws & PrecMinusOp & ws & PrecDivOperation)[*] |> v -> BuildApp2(v)
 # Ex: /,⌿,÷,...
 @rule PrecDivOperation = MultOperation & (ws & PrecDivOp & ws & MultOperation)[*] |> v -> BuildApp2(v)
-@rule MultOperation = (lparen & ws & PrecPowerOperation & ws & rparen , PrecPowerOperation) & ((ws & "*" & ws & PrecPowerOperation) , PrecPowerOperation)[*] |> v -> BuildMultOperation(v)
+@rule MultOperation = (lparen & ws & PrecPowerOperation & ws & rparen , PrecPowerOperation) & ((ws & "*" & ws & PrecPowerOperation), PrecPowerOperation)[*] |> v -> BuildMultOperation(v)
 # Ex: ^,↑,↓,...
 @rule PrecPowerOperation = Term & (ws & PrecPowerOp & ws & Term)[*] |> v -> BuildApp2(v)
 
@@ -205,16 +205,16 @@ end
 Takes in an input array (AST) for a multiplication operation and returns a corresponding Mult object or App2 depending on the input size.
 """
 function BuildMultOperation(v)
-  #println("Debug: v = ", v)
   Op1 = v[1]
   Op2 = v[2]
-  #println("Debug: v[2] = ", v[2])
-  #println("Debug: length v[2] = ", length(v[2]))
+
+  # Check if Op1 has parenthesis or not.
   if isa(Op1, Vector) && length(Op1) == 5
     Op1 = Op1[3]
   end
+
+  # Check if the result is an operation or term.
   if isempty(Op2)
-    #return v[1]  
     return Op1
   else
     normalizedOp2 = map(x -> isa(x, Vector) ? x : ["", "*", "", x], Op2)
@@ -251,9 +251,9 @@ depending on the amount of parameters (one or two).
 """
 function BuildCall(v)
   if length(v[8]) == 1
-      return App1(Symbol(v[3]), v[8][1])
+    return App1(Symbol(v[3]), v[8][1])
   else
-      return App2(Symbol(v[3]), v[8][1], v[8][2])
+    return App2(Symbol(v[3]), v[8][1], v[8][2])
   end
 end
 
